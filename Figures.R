@@ -30,6 +30,10 @@ fdat3 <- filter(fdat, lon <= -130 + 360 & lon >= 150 & lat <= -55 & lat >= -60)
 pdat <- rbind(fdat1, fdat2, fdat3)
 pdat <- filter(pdat, fishing_hours > 0)
 
+pdat$lon_lat <- paste0(pdat$lon, "_", pdat$lat)
+pdat <- pdat %>% group_by(lon_lat) %>% summarise(lon = mean(lon), lat = mean(lat), fishing_hours = sum(fishing_hours))
+
+
 # Setup map
 mp1 <- fortify(map(fill=TRUE, plot=FALSE))
 mp2 <- mp1
@@ -37,12 +41,19 @@ mp2$long <- mp2$long + 360
 mp2$group <- mp2$group + max(mp2$group) + 1
 mp <- rbind(mp1, mp2)
 
+ggplot() +
+  stat_contour(data = pdat, aes(lon, lat, z=fishing_hours, fill=stat(level)), geom="polygon") +
+  scale_fill_viridis_c(direction = -1)
+#
+
+
+
 ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.1, inherit.aes = FALSE) +
-  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = 0.25, inherit.aes = FALSE, shape=15) +
+  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = .44, inherit.aes = FALSE, shape=15) +
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
-  
-    # First segment to the east
+  # stat_contour(data = pdat, aes(x=lon, y=lat, z=fishing_hours, fill=..level.., group=1), geom="polygon") +
+  # First segment to the east
   annotate("segment", x = -150 + 360, xend = -150 + 360, y = 0, yend = 60) +
   annotate("segment", x = -150 + 360, xend = -130 + 360, y = 0, yend = 0) +
   annotate("segment", x = -130 + 360, xend = -130 + 360, y = 0, yend = -60) +
@@ -98,7 +109,7 @@ pdat <- filter(pdat, flag == "CHN")
 
 ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.1, inherit.aes = FALSE) +
-  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = 0.25, inherit.aes = FALSE, shape=15) +
+  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = .44, inherit.aes = FALSE, shape=15) +
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
   # First segment to the east
   annotate("segment", x = -150 + 360, xend = -150 + 360, y = 0, yend = 60) +
@@ -152,7 +163,7 @@ pdat <- filter(pdat, flag == "USA")
 
 ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.1, inherit.aes = FALSE) +
-  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = 0.25, inherit.aes = FALSE, shape=15) +
+  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = .44, inherit.aes = FALSE, shape=15) +
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
   # First segment to the east
   annotate("segment", x = -150 + 360, xend = -150 + 360, y = 0, yend = 60) +
@@ -223,14 +234,14 @@ for (i in 1:length(top_5)){
   flag_ = top_5[i]
   mdat <- filter(pdat, flag == flag_ | flag == "USA") 
   mdat <- mdat %>% group_by(lon_lat) %>% mutate(nn = n())
-  mdat$flag_overlap <- ifelse(mdat$nn == 2, paste0(flag_, "-USA"), mdat$flag)
-  mdat$flag_overlap <- factor(mdat$flag_overlap, levels = c("USA", flag_, paste0(flag_, "-USA")))
+  mdat$flag_overlap <- ifelse(mdat$nn == 2, paste0("USA-", flag_), mdat$flag)
+  mdat$flag_overlap <- factor(mdat$flag_overlap, levels = c("USA", flag_, paste0("USA-", flag_)))
   mdat <- as.data.frame(mdat)
   
   
 p1 <- ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.1, inherit.aes = FALSE) +
-  geom_point(data = mdat, aes(lon, lat, color=flag_overlap), size = 0.25, inherit.aes = FALSE, shape=15) +
+  geom_point(data = mdat, aes(lon, lat, color=flag_overlap), size = 1, inherit.aes = FALSE, shape=15) +
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
     # First segment to the east
     annotate("segment", x = -150 + 360, xend = -150 + 360, y = 0, yend = 60) +
@@ -246,12 +257,12 @@ p1 <- ggplot(data = mp, aes(x = long, y = lat, group = group)) +
     labs(x="Longitude", y="Latitude", 
          title=paste0("USA-", flag_, " Interactions"), color=NULL) +
     theme(plot.title = element_text(hjust = 0.5),
-          legend.position = c(.917, 0.092)) +
+          legend.position = c(.916, 0.092)) +
     coord_sf(xlim = c(100, 250), ylim = c(-60, 60)) +
     guides(color = guide_legend(override.aes = list(size = 3))) +
     NULL
   
-  ggsave(plot=p1, paste0('figures/', "USA-", flag_, "_interactions.png"), width = 8, height = 6)
+  ggsave(plot = p1, paste0('figures/', "USA-", flag_, "_interactions.png"), width = 8, height = 6)
   saveRDS(p1, file = paste0("data/", flag_, "-USA.rds"))
   print(flag_)
 
@@ -270,9 +281,11 @@ plot_grid(p1, p2, p3, p4, p5, ncol=2)
 
 ggsave("figures/all_interactions.png", width = 16, height = 6*3)
 
+
+
+
+
 ### Species Richness
-
-
 setwd("~/Projects/World-fishing-rich-diver-equit/")
 
 fdat <- as.data.frame(read_csv("data/total_species_richness.csv"))
@@ -289,7 +302,7 @@ pdat <- rbind(fdat1, fdat2, fdat3)
 
 ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.1, inherit.aes = FALSE) +
-  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = 0.25, inherit.aes = FALSE, shape=15) +
+  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = .44, inherit.aes = FALSE, shape=15) +
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
   # First segment to the east
   annotate("segment", x = -150 + 360, xend = -150 + 360, y = 0, yend = 60) +
@@ -342,7 +355,7 @@ pdat <- rbind(fdat1, fdat2, fdat3)
 
 ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.1, inherit.aes = FALSE) +
-  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = 0.25, inherit.aes = FALSE, shape=15) +
+  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = .44, inherit.aes = FALSE, shape=15) +
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
   # First segment to the east
   annotate("segment", x = -150 + 360, xend = -150 + 360, y = 0, yend = 60) +
@@ -393,7 +406,7 @@ pdat <- rbind(fdat1, fdat2, fdat3)
 
 ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.1, inherit.aes = FALSE) +
-  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = 0.25, inherit.aes = FALSE, shape=15) +
+  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = .44, inherit.aes = FALSE, shape=15) +
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
   # First segment to the east
   annotate("segment", x = -150 + 360, xend = -150 + 360, y = 0, yend = 60) +
