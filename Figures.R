@@ -437,11 +437,123 @@ ggsave("figures/shannon_equ_index.png", width=8, height=4)
 
 
 
+# Histogram of fishing hours by nation
+fdat <- as.data.frame(read_csv("data/total_fishing_effort_by_nation.csv"))
+
+fdat <- fdat %>% group_by(flag) %>% summarise(sum_fishing_hours = sum(fishing_hours)) %>% arrange(-sum_fishing_hours) %>% head(10)
+
+#    flag  sum_fishing_hours
+#    <chr>             <dbl>
+#  1 TWN              32963.
+#  2 CHN              30935.
+#  3 JPN              20514.
+#  4 KOR              16572.
+#  5 ESP              15380.
+#  6 USA              10619.
+#  7 RUS               8483.
+#  8 VUT               7854.
+#  9 PRT               7482.
+# 10 UNK               4460.
+
+top_10 <- fdat$flag
+
+fdat <- filter(fdat, flag %in% top_10)
+
+fdat$flag <- factor(fdat$flag, levels = top_10)
+
+ggplot(fdat, aes(flag, sum_fishing_hours)) + 
+  geom_bar(stat='identity') + 
+  # geom_text_repel(label = sum_fishing_hours) +
+  labs(x=NULL, y="Total Fishing Hours") + 
+  scale_y_continuous(label = comma) +
+  theme_bw() +
+  NULL
+
+
+
+fdat <- as.data.frame(read_csv("data/total_fishing_effort_by_nation.csv"))
+
+fdat$lon <- ifelse(fdat$lon < 0, fdat$lon + 360, fdat$lon)
+
+# Subset within WCP
+fdat1 <- filter(fdat, lon <= -150 + 360 & lon >= 100 & lat >= 0)
+fdat2 <- filter(fdat, lon <= -130 + 360 & lon >= 140 & lat < 0 & lat >= -55)
+fdat3 <- filter(fdat, lon <= -130 + 360 & lon >= 150 & lat <= -55 & lat >= -60)
+
+pdat <- rbind(fdat1, fdat2, fdat3)
+
+fdat <- fdat %>% group_by(flag) %>% summarise(sum_fishing_hours = sum(fishing_hours)) %>% arrange(-sum_fishing_hours) %>% head(10)
+
+#    flag  sum_fishing_hours
+#    <chr>             <dbl>
+#  1 TWN              32963.
+#  2 CHN              30935.
+#  3 JPN              20514.
+#  4 KOR              16572.
+#  5 ESP              15380.
+#  6 USA              10619.
+#  7 RUS               8483.
+#  8 VUT               7854.
+#  9 PRT               7482.
+# 10 UNK               4460.
+
+top_10 <- c("TWN", "CHN", "JPN", "KOR", "ESP", "USA", "RUS", "VUT", "PRT", "UNK")
+
+fdat <- filter(fdat, flag %in% top_10)
+
+fdat$flag <- factor(fdat$flag, levels = top_10)
+
+ggplot(fdat, aes(flag, sum_fishing_hours)) + 
+  geom_bar(stat='identity') + 
+  # geom_text_repel(label = sum_fishing_hours) +
+  labs(x=NULL, y="Total Fishing Hours") + 
+  scale_y_continuous(label = comma) +
+  theme_bw() +
+  NULL
+
+ggsave("figures/fishing_effort_histogram.png", width=6, height=4)
+
+
+
+
+fdat <- as.data.frame(read_csv("data/WCP_total_fishing_effort_by_nation.csv"))
+
+fdat$lon <- ifelse(fdat$lon < 0, fdat$lon + 360, fdat$lon)
+
+# Subset within WCP
+fdat1 <- filter(fdat, lon <= -150 + 360 & lon >= 100 & lat >= 0)
+fdat2 <- filter(fdat, lon <= -130 + 360 & lon >= 140 & lat < 0 & lat >= -55)
+fdat3 <- filter(fdat, lon <= -130 + 360 & lon >= 150 & lat <= -55 & lat >= -60)
+
+fdat <- rbind(fdat1, fdat2, fdat3)
+
+fdat <- filter(fdat, flag %in% top_10)
+
+fdat <- fdat %>% group_by(flag) %>% 
+  summarise(fishing_hours = sum(fishing_hours),
+            total_mmsi = sum(mmsi)) %>% 
+  mutate(effort_vessels = fishing_hours / total_mmsi) %>% 
+  arrange(-effort_vessels)
+
+top_10 <- fdat$flag
+
+fdat$flag <- factor(fdat$flag, levels = top_10)
+
+ggplot(fdat, aes(flag, effort_vessels)) + 
+  geom_bar(stat='identity') + 
+  # geom_text_repel(label = sum_fishing_hours) +
+  labs(x=NULL, y="Total Fishing Hours / # Vessel") + 
+  scale_y_continuous(label = comma) +
+  theme_bw() +
+  NULL
+
+
+ggsave("figures/fishing_effort_by_nvessels_histogram.png", width=6, height=4)
+
 
 ### Heat map of interactions
 
 idat <- as.data.frame(read_csv("data/flag_interactions.csv"))
 
-idat <- filter(idat, interaction != 0 & interaction != 1) %>% arrange(-interaction)
+ggplot(idat, aes(flag_1, flag_2, fill=interaction)) + geom_tile() + geom_label(aes(label=round(interaction, 2)))
 
-ggplot(idat, aes(flag_1, flag_2, fill=interaction)) + geom_tile()

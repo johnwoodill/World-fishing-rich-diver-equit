@@ -109,13 +109,6 @@ shan_divi = shan_divi.reset_index(drop=True)
 shan_divi.to_csv('data/shannon_div_equ.csv', index=False)
 
 
-def flag_count(indat, flat_i, flag_j):
-    indat = indat[( indat['flag'] == flag_i ) | ( indat['flag'] == flag_j )]
-    if len(indat) == 2:
-        return 1
-    else:
-        return 0
-
 
 def flag_int(fint_dat, flag_i, flag_j):
     if flag_i != flag_j:
@@ -124,9 +117,7 @@ def flag_int(fint_dat, flag_i, flag_j):
         red_dat = red_dat[['lon_lat', 'flag', 'fishing_hours']].pivot(index='lon_lat', columns='flag', values = 'fishing_hours').reset_index()
         red_dat = red_dat.dropna()
         ret_flag_int = red_dat[(red_dat.iloc[:, 1] > 0) & (red_dat.iloc[:, 2] > 0)]
-        
-        #ret_flag_int = red_dat.groupby('lon_lat').apply(lambda x: flag_count(x, flag_i, flag_j))
-        Aij = len(ret_flag_int) / Ai
+        Aij = len(ret_flag_int) / (Ai + len(ret_flag_int))
         return (flag_i, flag_j, Aij)
     else:
         return (flag_i, flag_j, 1)
@@ -134,12 +125,27 @@ def flag_int(fint_dat, flag_i, flag_j):
         
     
 # Flag interactions
-fint_dat = dat.groupby(['lon_lat', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
+fint_dat = dat.groupby(['lon_lat', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+
+
+# Adjust to anti-meridian
+fint_dat = fint_dat.assign(lon = np.where(fint_dat['lon'] < 0, fint_dat['lon'] + 360, fint_dat['lon']))
+
+# Subset within WCP
+fdat1 = fint_dat[(fint_dat['lon'] <= -150 + 360) & (fint_dat['lon'] >= 100) & (fint_dat['lat'] >= 0)]
+fdat2 = fint_dat[(fint_dat['lon'] <= -130 + 360) & (fint_dat['lon'] >= 140) & (fint_dat['lat'] < 0) & (fint_dat['lat'] >= -55)]
+fdat3 = fint_dat[(fint_dat['lon'] <= -130 + 360) & (fint_dat['lon'] >= 150) & (fint_dat['lat'] <= -55) & (fint_dat['lat'] >= -60)]
+
+# Bind data
+fint_dat = pd.concat([fdat1, fdat2, fdat3]).reset_index(drop=True)
+fint_dat = fint_dat.drop_duplicates()
+
+# Get top 20
+top_20 = fint_dat.groupby('flag')['fishing_hours'].sum().reset_index().sort_values('fishing_hours', ascending=False)
+top_20 = top_20.iloc[0:19, :]
 
 # Flag interactions
-unique_flags = sorted(fint_dat.flag.unique())
-
-unique_flags = ['USA', 'CHN']
+unique_flags = sorted(top_20.flag.unique())
 
 res = [flag_int(fint_dat, i, j) for i in unique_flags for j in unique_flags]
 
@@ -149,15 +155,23 @@ interaction = [x[2] for x in res]
 save_dat = pd.DataFrame({'flag_1': flag_1, 'flag_2': flag_2, 'interaction': interaction})
 save_dat.to_csv('data/flag_interactions.csv', index=False)
 
-
 retdat = pd.read_csv('data/flag_interactions.csv')
 
 # Spread data frame to matrix
 mat_retdat = retdat.pivot(index='flag_1', columns='flag_2', values='interaction')
-mat_retdat.to_csv('data/flag_interactions_matrix.csv')
+mat_retdat.to_csv('data/flag_interactions_matrix.csv', index=True)
+
+retdat.shape
 
 mat_retdat = np.matrix(mat_retdat)
 np.save('data/flag_interactions_matrix.npy', mat_retdat) 
 
 
 
+
+# Additional filtered data
+fint_dat = dat.groupby(['lon_lat', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean', 'mmsi': 'nunique'}).reset_index()
+fint_dat.to_csv("data/total_fishing_effort_by_nation.csv", index=False)
+
+fint_dat = dat.groupby(['lon_lat', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum', 'mmsi': 'nunique'}).reset_index()
+fint_dat.to_csv("data/WCP_total_fishing_effort_by_nation.csv", index=False)
