@@ -5,7 +5,7 @@ import glob as glob
 
 
 def shan_div(indat):
-    lon_lat = indat['lon_lat'].iat[0]
+    lat_lon = indat['lat_lon'].iat[0]
     lat = indat['lat'].iat[0]
     lon = indat['lon'].iat[0]
     indat = indat.assign(total = sum(indat['obs_count']))
@@ -14,7 +14,7 @@ def shan_div(indat):
     indat = indat.assign(p_ln_p = indat['p'] * indat['ln_p'])
     H = -1 * (np.sum(indat['p_ln_p']))
     E = H / np.log(len(indat))
-    outdat = pd.DataFrame({'lon_lat': [lon_lat], 'lon': [lon], 'lat': [lat], 'H': [H], 'E': [E]})
+    outdat = pd.DataFrame({'lat_lon': [lat_lon], 'lon': [lon], 'lat': [lat], 'H': [H], 'E': [E]})
     return outdat
 
 
@@ -49,7 +49,7 @@ dat = dat.merge(vessel_dat, how='left', on='mmsi')
 ### Column names
 # Index(['date', 'lat_bin', 'lon_bin', 'flag', 'geartype',
 #        'vessel_hours', 'fishing_hours', 'mmsi_present', 'lat', 'lon',
-#        'lon_lat'],
+#        'lat_lon'],
 #       dtype='object')
 
 ### Aggregate to 10th degree
@@ -62,7 +62,7 @@ dat = dat.assign(lon = np.where(dat['lon'] == -0.0, 0.0, dat['lon']))
 dat = dat.assign(lat = np.where(dat['lat'] == -0.0, 0.0, dat['lat']))
 
 ### Get unique lon/lat grids
-dat = dat.assign(lon_lat = dat['lon'].astype(str) + "_" + dat['lat'].astype(str))
+dat = dat.assign(lat_lon = dat['lat'].astype(str) + "_" + dat['lon'].astype(str))
 
 dat = dat.sort_values('date').reset_index(drop=True)
 
@@ -73,7 +73,7 @@ dat = dat.dropna()
 # Index(['date', 'lat_bin', 'lon_bin', 'mmsi', 'fishing_hours', 'lat', 'lon',
 #        'flag', 'geartype', 'length', 'tonnage', 'engine_power', 'active_2012',
 #        'active_2013', 'active_2014', 'active_2015', 'active_2016', 'year',
-#        'lon_lat'],
+#        'lat_lon'],
 #       dtype='object')
 # ------------------------------------------------------------------------------
 
@@ -85,26 +85,27 @@ dat = pd.read_csv('data/full_GFW_public_10d.csv', index_col=False)
 ### Aggregate to 10th degree lon/lat: 
 
 # Total Fishing Effort
-feffort_dat = dat.groupby(['year', 'lon_lat']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
-feffort_dat = dat.groupby(['lon_lat']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+feffort_dat = dat.groupby(['year', 'lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
+feffort_dat = dat.groupby(['lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
 feffort_dat.to_csv('data/total_fishing_effort.csv', index=False)
 
 # Total Fishing Effort by nation
-feffort_nat_dat = dat.groupby(['year', 'lon_lat', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
-feffort_nat_dat = dat.groupby(['lon_lat', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+feffort_nat_dat = dat.groupby(['year', 'lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
+feffort_nat_dat = dat.groupby(['lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
 feffort_nat_dat.to_csv('data/total_fishing_effort_nation.csv', index=False)
 
 
 # Species Richness
-richness_dat = dat.groupby(['lon_lat']).agg({'lat': 'mean', 'lon': 'mean', 'flag': 'nunique'}).reset_index()
+richness_dat = dat.groupby(['lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'flag': 'nunique'}).reset_index()
+richness_dat = richness_dat.rename(columns={'flag': 'richness'})
 richness_dat.to_csv('data/total_species_richness.csv', index=False)
 
 
 # Shannon Diversity Index
-sdiv_dat = dat.groupby(['lon_lat', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'year': 'count'}).reset_index()
+sdiv_dat = dat.groupby(['lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'year': 'count'}).reset_index()
 sdiv_dat = sdiv_dat.rename(columns={'year': 'obs_count'})
 
-shan_divi = sdiv_dat.groupby('lon_lat').apply(lambda x: shan_div(x))
+shan_divi = sdiv_dat.groupby('lat_lon').apply(lambda x: shan_div(x))
 shan_divi = shan_divi.reset_index(drop=True)
 shan_divi.to_csv('data/shannon_div_equ.csv', index=False)
 
@@ -114,7 +115,7 @@ def flag_int(fint_dat, flag_i, flag_j):
     if flag_i != flag_j:
         Ai = len(fint_dat[fint_dat['flag'] == flag_i])
         red_dat = fint_dat[(fint_dat['flag'] == flag_i) | (fint_dat['flag'] == flag_j)]
-        red_dat = red_dat[['lon_lat', 'flag', 'fishing_hours']].pivot(index='lon_lat', columns='flag', values = 'fishing_hours').reset_index()
+        red_dat = red_dat[['lat_lon', 'flag', 'fishing_hours']].pivot(index='lat_lon', columns='flag', values = 'fishing_hours').reset_index()
         red_dat = red_dat.dropna()
         ret_flag_int = red_dat[(red_dat.iloc[:, 1] > 0) & (red_dat.iloc[:, 2] > 0)]
         Aij = len(ret_flag_int) / (Ai + len(ret_flag_int))
@@ -125,7 +126,7 @@ def flag_int(fint_dat, flag_i, flag_j):
         
     
 # Flag interactions
-fint_dat = dat.groupby(['lon_lat', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+fint_dat = dat.groupby(['lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
 
 
 # Adjust to anti-meridian
@@ -170,8 +171,8 @@ np.save('data/flag_interactions_matrix.npy', mat_retdat)
 
 
 # Additional filtered data
-fint_dat = dat.groupby(['lon_lat', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean', 'mmsi': 'nunique'}).reset_index()
-fint_dat.to_csv("data/total_fishing_effort_by_nation.csv", index=False)
+# fint_dat = dat.groupby(['lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean', 'mmsi': 'nunique'}).reset_index()
+# fint_dat.to_csv("data/total_fishing_effort_by_nation.csv", index=False)
 
-fint_dat = dat.groupby(['lon_lat', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum', 'mmsi': 'nunique'}).reset_index()
-fint_dat.to_csv("data/WCP_total_fishing_effort_by_nation.csv", index=False)
+# fint_dat = dat.groupby(['lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum', 'mmsi': 'nunique'}).reset_index()
+# fint_dat.to_csv("data/WCP_total_fishing_effort_by_nation.csv", index=False)

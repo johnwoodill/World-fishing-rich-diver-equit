@@ -7,6 +7,8 @@ library(sf)
 library(raster)
 
 
+
+
 setwd("~/Projects/World-fishing-rich-diver-equit/")
 
 eezs <- read_sf('data/World_EEZ_v11_20191118_HR_0_360/eez_boundaries_v11_0_360.shp')

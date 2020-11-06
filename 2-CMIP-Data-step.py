@@ -313,3 +313,5 @@ ssp126_dat = pd.concat([ssp126_arag_data, ssp126_chl_data, ssp126_oxy_data, ssp1
 # ### Save data
 ssp126_dat.to_hdf('data/full_CMIP6_ssp126_2075_2090.hdf', key='ssp126_2075_2090')
 
+
+ssp126_dat.to_csv('data/test.csv', index=False)
