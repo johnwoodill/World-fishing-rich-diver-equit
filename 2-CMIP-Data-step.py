@@ -4,7 +4,7 @@ import xarray
 import glob as glob
 from scipy.stats import skew, kurtosis
 
-def proc_dat(file_, min_year, max_year):
+def proc_dat(file_, min_year, max_year, var_name):
     outdat = pd.DataFrame()
     if isinstance(file_, list):
         for i in file_:
@@ -13,26 +13,27 @@ def proc_dat(file_, min_year, max_year):
             indat = ds.to_dataframe().reset_index()
             indat = indat.dropna()
             
-            indat = indat.drop(['bnds','lat_bnds', 'lon_bnds', 'time_bnds'], axis = 1)
+            indat = indat.drop(['lat', 'lon', 'time', 'bnds'], axis = 1)
+            
+            indat = indat.rename(columns={"lat_bnds": "lat", "lon_bnds": "lon", "time_bnds": "time"})
             
             ### Clean up dates
             indat = indat.assign(time = pd.to_datetime(indat['time'], format='%Y-%m-%d %H:00:00'))
             
-            ### Subtract 0.5 to center grid
             indat = indat.assign(year = indat['time'].dt.year,
-                                lon = round( (indat['lon'] - 0.5), 0),
-                                lat = round( (indat['lat'] - 0.5), 0))
+                                lon = round( indat['lon'], 0),
+                                lat = round( indat['lat'], 0))
             
             ### Only keep years between 2000 and 2014
             indat = indat[( indat['year'] >= min_year) & ( indat['year'] <= max_year)]
             
             ### Clean up data
             # indat = indat.iloc[:, [3, 8, 1, 2, 5]]
-            var_name = indat.columns[3]
-            indat = indat.rename(columns={indat.columns[3]: 'value'})
+            indat.columns = indat.columns.str.replace(f"{var_name}", "value")
             indat = indat.assign(var = var_name,
                                 lat_lon = indat['lat'].astype(str) + "_" + indat['lon'].astype(str) )
-            indat = indat.iloc[:, [2, 4, 6, 0, 1, 5, 3]]
+            indat = indat[['time', 'year', 'lat_lon', 'lat', 'lon', 'var', 'value']]
+            # indat = indat.iloc[:, [2, 4, 6, 0, 1, 5, 3]]
             outdat = pd.concat([outdat, indat])
             
     else:
@@ -41,26 +42,27 @@ def proc_dat(file_, min_year, max_year):
         indat = ds.to_dataframe().reset_index()
         indat = indat.dropna()
         
-        indat = indat.drop(['bnds','lat_bnds', 'lon_bnds', 'time_bnds'], axis = 1)
+        indat = indat.drop(['lat', 'lon', 'time', 'bnds'], axis = 1)
+        
+        indat = indat.rename(columns={"lat_bnds": "lat", "lon_bnds": "lon", "time_bnds": "time"})
         
         ### Clean up dates
         indat = indat.assign(time = pd.to_datetime(indat['time'], format='%Y-%m-%d %H:00:00'))
         
-        ### Subtract 0.5 to center grid
         indat = indat.assign(year = indat['time'].dt.year,
-                            lon = round( (indat['lon'] - 0.5), 0),
-                            lat = round( (indat['lat'] - 0.5), 0))
+                            lon = round( indat['lon'], 0),
+                            lat = round( indat['lat'], 0))
         
         ### Only keep years between 2000 and 2014
         indat = indat[( indat['year'] >= min_year) & ( indat['year'] <= max_year)]
         
         ### Clean up data
         # indat = indat.iloc[:, [3, 8, 1, 2, 5]]
-        var_name = indat.columns[3]
-        indat = indat.rename(columns={indat.columns[3]: 'value'})
+        indat.columns = indat.columns.str.replace(f"{var_name}", "value")
         indat = indat.assign(var = var_name,
                             lat_lon = indat['lat'].astype(str) + "_" + indat['lon'].astype(str) )
-        indat = indat.iloc[:, [2, 4, 6, 0, 1, 5, 3]]
+        indat = indat[['time', 'year', 'lat_lon', 'lat', 'lon', 'var', 'value']]
+        # indat = indat.iloc[:, [2, 4, 6, 0, 1, 5, 3]]
         outdat = pd.concat([outdat, indat])
         
     ### Assign period
@@ -93,6 +95,9 @@ def proc_dat(file_, min_year, max_year):
     voutdat = voutdat[['period', 'lat_lon', 'lat', 'lon', 'var_name', 'mean', 'var', 'skew', 'kurt']]
     return voutdat
     
+    
+    
+    
 
 # Setup data dir locations
 # 
@@ -122,27 +127,24 @@ sst_files = sorted(glob.glob('CMIP6_data/sst/historical/*'))[-2:]
 zoo_files = sorted(glob.glob('CMIP6_data/zoo/historical/*'))[-2:]
 
 # ### Get individual data
-hist_arag_data = proc_dat(arag_files, min_year = 2000, max_year = 2014, period = '2000-2014')
-hist_chl_data = proc_dat(chl_files, min_year = 2000, max_year = 2014, period = '2000-2014')
-hist_oxy_data = proc_dat(oxy_files, min_year = 2000, max_year = 2014, period = '2000-2014')
-hist_ph_data = proc_dat(ph_files, min_year = 2000, max_year = 2014, period = '2000-2014')
-hist_sal_data = proc_dat(sal_files, min_year = 2000, max_year = 2014, period = '2000-2014')
-hist_si_data = proc_dat(si_files, min_year = 2000, max_year = 2014, period = '2000-2014')
-hist_sst_data = proc_dat(sst_files, min_year = 2000, max_year = 2014, period = '2000-2014')
-hist_zoo_data = proc_dat(zoo_files, min_year = 2000, max_year = 2014, period = '2000-2014')
+hist_arag_data = proc_dat(arag_files, min_year = 2000, max_year = 2014, var_name = "aragos")
+hist_chl_data = proc_dat(chl_files, min_year = 2000, max_year = 2014, var_name = "chlos")
+hist_oxy_data = proc_dat(oxy_files, min_year = 2000, max_year = 2014, var_name = "o2satos")
+hist_ph_data = proc_dat(ph_files, min_year = 2000, max_year = 2014, var_name = "phos")
+hist_sal_data = proc_dat(sal_files, min_year = 2000, max_year = 2014, var_name = "sos")
+hist_si_data = proc_dat(si_files, min_year = 2000, max_year = 2014, var_name = "sios")
+hist_sst_data = proc_dat(sst_files, min_year = 2000, max_year = 2014, var_name = "tos")
+hist_zoo_data = proc_dat(zoo_files, min_year = 2000, max_year = 2014, var_name = "zoocos")
 
 # ### Concat data
 hist_dat = pd.concat([hist_arag_data, hist_chl_data, hist_oxy_data, hist_ph_data, 
                     hist_sal_data, hist_si_data, hist_sst_data, hist_zoo_data])
 
 # ### Save data
+hist_dat = hist_dat.reset_index(drop=False)
 hist_dat.to_hdf('data/full_CMIP6_historical.hdf', key='historical')
 
-
-
-
-
-
+hist_dat = pd.read_hdf('data/full_CMIP6_historical.hdf', key='historical')
 
 
 # -----------------------------------------------------------------
@@ -157,14 +159,14 @@ sst_files = sorted(glob.glob('CMIP6_data/sst/ssp126/*'))[0]
 zoo_files = sorted(glob.glob('CMIP6_data/zoo/ssp126/*'))[0]
 
 # ### Get individual data
-ssp126_arag_data = proc_dat(arag_files, min_year = 2015, max_year = 2030, period = '2015-2030')
-ssp126_chl_data = proc_dat(chl_files, min_year = 2015, max_year = 2030, period = '2015-2030')
-ssp126_oxy_data = proc_dat(oxy_files, min_year = 2015, max_year = 2030, period = '2015-2030')
-ssp126_ph_data = proc_dat(ph_files, min_year = 2015, max_year = 2030, period = '2015-2030')
-ssp126_sal_data = proc_dat(sal_files, min_year = 2015, max_year = 2030, period = '2015-2030')
-ssp126_si_data = proc_dat(si_files, min_year = 2015, max_year = 2030, period = '2015-2030')
-ssp126_sst_data = proc_dat(sst_files, min_year = 2015, max_year = 2030, period = '2015-2030')
-ssp126_zoo_data = proc_dat(zoo_files, min_year = 2015, max_year = 2030, period = '2015-2030')
+ssp126_arag_data = proc_dat(arag_files, min_year = 2015, max_year = 2030, var_name = "aragos")
+ssp126_chl_data = proc_dat(chl_files, min_year = 2015, max_year = 2030, var_name = "chlos")
+ssp126_oxy_data = proc_dat(oxy_files, min_year = 2015, max_year = 2030, var_name = "o2satos")
+ssp126_ph_data = proc_dat(ph_files, min_year = 2015, max_year = 2030, var_name = "phos")
+ssp126_sal_data = proc_dat(sal_files, min_year = 2015, max_year = 2030, var_name = "sos")
+ssp126_si_data = proc_dat(si_files, min_year = 2015, max_year = 2030, var_name = "sios")
+ssp126_sst_data = proc_dat(sst_files, min_year = 2015, max_year = 2030, var_name = "tos")
+ssp126_zoo_data = proc_dat(zoo_files, min_year = 2015, max_year = 2030, var_name = "zoocos")
 
 # ### Concat data
 ssp126_dat = pd.concat([ssp126_arag_data, ssp126_chl_data, ssp126_oxy_data, ssp126_ph_data, 
@@ -195,14 +197,14 @@ sst_files = sorted(glob.glob('CMIP6_data/sst/ssp126/*'))[0:2]
 zoo_files = sorted(glob.glob('CMIP6_data/zoo/ssp126/*'))[0:2]
 
 # ### Get individual data
-ssp126_arag_data = proc_dat(arag_files, min_year = 2030, max_year = 2045)
-ssp126_chl_data = proc_dat(chl_files, min_year = 2030, max_year = 2045)
-ssp126_oxy_data = proc_dat(oxy_files, min_year = 2030, max_year = 2045)
-ssp126_ph_data = proc_dat(ph_files, min_year = 2030, max_year = 2045)
-ssp126_sal_data = proc_dat(sal_files, min_year = 2030, max_year = 2045)
-ssp126_si_data = proc_dat(si_files, min_year = 2030, max_year = 2045)
-ssp126_sst_data = proc_dat(sst_files, min_year = 2030, max_year = 2045)
-ssp126_zoo_data = proc_dat(zoo_files, min_year = 2030, max_year = 2045)
+ssp126_arag_data = proc_dat(arag_files, min_year = 2030, max_year = 2045, var_name = "aragos")
+ssp126_chl_data = proc_dat(chl_files, min_year = 2030, max_year = 2045, var_name = "chlos")
+ssp126_oxy_data = proc_dat(oxy_files, min_year = 2030, max_year = 2045, var_name = "o2satos")
+ssp126_ph_data = proc_dat(ph_files, min_year = 2030, max_year = 2045, var_name = "phos")
+ssp126_sal_data = proc_dat(sal_files, min_year = 2030, max_year = 2045, var_name = "sos")
+ssp126_si_data = proc_dat(si_files, min_year = 2030, max_year = 2045, var_name = "sios")
+ssp126_sst_data = proc_dat(sst_files, min_year = 2030, max_year = 2045, var_name = "tos")
+ssp126_zoo_data = proc_dat(zoo_files, min_year = 2030, max_year = 2045, var_name = "zoocos")
 
 # ### Concat data
 ssp126_dat = pd.concat([ssp126_arag_data, ssp126_chl_data, ssp126_oxy_data, ssp126_ph_data, 
@@ -228,14 +230,14 @@ sst_files = sorted(glob.glob('CMIP6_data/sst/ssp126/*'))[1:3]
 zoo_files = sorted(glob.glob('CMIP6_data/zoo/ssp126/*'))[1:3]
 
 # ### Get individual data
-ssp126_arag_data = proc_dat(arag_files, min_year = 2045, max_year = 2060)
-ssp126_chl_data = proc_dat(chl_files, min_year = 2045, max_year = 2060)
-ssp126_oxy_data = proc_dat(oxy_files, min_year = 2045, max_year = 2060)
-ssp126_ph_data = proc_dat(ph_files, min_year = 2045, max_year = 2060)
-ssp126_sal_data = proc_dat(sal_files, min_year = 2045, max_year = 2060)
-ssp126_si_data = proc_dat(si_files, min_year = 2045, max_year = 2060)
-ssp126_sst_data = proc_dat(sst_files, min_year = 2045, max_year = 2060)
-ssp126_zoo_data = proc_dat(zoo_files, min_year = 2045, max_year = 2060)
+ssp126_arag_data = proc_dat(arag_files, min_year = 2045, max_year = 2060, var_name = "aragos")
+ssp126_chl_data = proc_dat(chl_files, min_year = 2045, max_year = 2060, var_name = "chlos")
+ssp126_oxy_data = proc_dat(oxy_files, min_year = 2045, max_year = 2060, var_name = "o2satos")
+ssp126_ph_data = proc_dat(ph_files, min_year = 2045, max_year = 2060, var_name = "phos")
+ssp126_sal_data = proc_dat(sal_files, min_year = 2045, max_year = 2060, var_name = "sos")
+ssp126_si_data = proc_dat(si_files, min_year = 2045, max_year = 2060, var_name = "sios")
+ssp126_sst_data = proc_dat(sst_files, min_year = 2045, max_year = 2060, var_name = "tos")
+ssp126_zoo_data = proc_dat(zoo_files, min_year = 2045, max_year = 2060, var_name = "zoocos")
 
 # ### Concat data
 ssp126_dat = pd.concat([ssp126_arag_data, ssp126_chl_data, ssp126_oxy_data, ssp126_ph_data, 
@@ -264,14 +266,14 @@ sst_files = sorted(glob.glob('CMIP6_data/sst/ssp126/*'))[2:4]
 zoo_files = sorted(glob.glob('CMIP6_data/zoo/ssp126/*'))[2:4]
 
 # ### Get individual data
-ssp126_arag_data = proc_dat(arag_files, min_year = 2060, max_year = 2075)
-ssp126_chl_data = proc_dat(chl_files, min_year = 2060, max_year = 2075)
-ssp126_oxy_data = proc_dat(oxy_files, min_year = 2060, max_year = 2075)
-ssp126_ph_data = proc_dat(ph_files, min_year = 2060, max_year = 2075)
-ssp126_sal_data = proc_dat(sal_files, min_year = 2060, max_year = 2075)
-ssp126_si_data = proc_dat(si_files, min_year = 2060, max_year = 2075)
-ssp126_sst_data = proc_dat(sst_files, min_year = 2060, max_year = 2075)
-ssp126_zoo_data = proc_dat(zoo_files, min_year = 2060, max_year = 2075)
+ssp126_arag_data = proc_dat(arag_files, min_year = 2060, max_year = 2075, var_name = "aragos")
+ssp126_chl_data = proc_dat(chl_files, min_year = 2060, max_year = 2075, var_name = "chlos")
+ssp126_oxy_data = proc_dat(oxy_files, min_year = 2060, max_year = 2075, var_name = "o2satos")
+ssp126_ph_data = proc_dat(ph_files, min_year = 2060, max_year = 2075, var_name = "phos")
+ssp126_sal_data = proc_dat(sal_files, min_year = 2060, max_year = 2075, var_name = "sos")
+ssp126_si_data = proc_dat(si_files, min_year = 2060, max_year = 2075, var_name = "sios")
+ssp126_sst_data = proc_dat(sst_files, min_year = 2060, max_year = 2075, var_name = "tos")
+ssp126_zoo_data = proc_dat(zoo_files, min_year = 2060, max_year = 2075, var_name = "zoocos")
 
 # ### Concat data
 ssp126_dat = pd.concat([ssp126_arag_data, ssp126_chl_data, ssp126_oxy_data, ssp126_ph_data, 
@@ -297,14 +299,14 @@ sst_files = sorted(glob.glob('CMIP6_data/sst/ssp126/*'))[3:4]
 zoo_files = sorted(glob.glob('CMIP6_data/zoo/ssp126/*'))[3:4]
 
 # ### Get individual data
-ssp126_arag_data = proc_dat(arag_files, min_year = 2075, max_year = 2090)
-ssp126_chl_data = proc_dat(chl_files, min_year = 2075, max_year = 2090)
-ssp126_oxy_data = proc_dat(oxy_files, min_year = 2075, max_year = 2090)
-ssp126_ph_data = proc_dat(ph_files, min_year = 2075, max_year = 2090)
-ssp126_sal_data = proc_dat(sal_files, min_year = 2075, max_year = 2090)
-ssp126_si_data = proc_dat(si_files, min_year = 2075, max_year = 2090)
-ssp126_sst_data = proc_dat(sst_files, min_year = 2075, max_year = 2090)
-ssp126_zoo_data = proc_dat(zoo_files, min_year = 2075, max_year = 2090)
+ssp126_arag_data = proc_dat(arag_files, min_year = 2075, max_year = 2090, var_name = "aragos")
+ssp126_chl_data = proc_dat(chl_files, min_year = 2075, max_year = 2090, var_name = "chlos")
+ssp126_oxy_data = proc_dat(oxy_files, min_year = 2075, max_year = 2090, var_name = "o2satos")
+ssp126_ph_data = proc_dat(ph_files, min_year = 2075, max_year = 2090, var_name = "phos")
+ssp126_sal_data = proc_dat(sal_files, min_year = 2075, max_year = 2090, var_name = "sos")
+ssp126_si_data = proc_dat(si_files, min_year = 2075, max_year = 2090, var_name = "sios")
+ssp126_sst_data = proc_dat(sst_files, min_year = 2075, max_year = 2090, var_name = "tos")
+ssp126_zoo_data = proc_dat(zoo_files, min_year = 2075, max_year = 2090, var_name = "zoocos")
 
 # ### Concat data
 ssp126_dat = pd.concat([ssp126_arag_data, ssp126_chl_data, ssp126_oxy_data, ssp126_ph_data, 

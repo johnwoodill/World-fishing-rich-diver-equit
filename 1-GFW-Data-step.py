@@ -95,6 +95,12 @@ feffort_nat_dat = dat.groupby(['lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'm
 feffort_nat_dat.to_csv('data/total_fishing_effort_nation.csv', index=False)
 
 
+# Total Fishing Effort by geartype
+feffort_gear_nat_dat = dat.groupby(['year', 'lat_lon', 'geartype']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
+feffort_gear_nat_dat = dat.groupby(['lat_lon', 'geartype']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+feffort_gear_nat_dat.to_csv('data/total_fishing_effort_gear.csv', index=False)
+
+
 # Species Richness
 richness_dat = dat.groupby(['lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'flag': 'nunique'}).reset_index()
 richness_dat = richness_dat.rename(columns={'flag': 'richness'})
@@ -109,6 +115,8 @@ shan_divi = sdiv_dat.groupby('lat_lon').apply(lambda x: shan_div(x))
 shan_divi = shan_divi.reset_index(drop=True)
 shan_divi.to_csv('data/shannon_div_equ.csv', index=False)
 
+
+# Flag Interactions
 
 
 def flag_int(fint_dat, flag_i, flag_j):

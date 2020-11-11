@@ -295,16 +295,18 @@ fdat <- as.data.frame(read_csv("data/total_species_richness.csv"))
 fdat$lon <- ifelse(fdat$lon < 0, fdat$lon + 360, fdat$lon)
 
 # Subset within WCP
-fdat1 <- filter(fdat, lon <= -150 + 360 & lon >= 100 & lat >= 0)
-fdat2 <- filter(fdat, lon <= -130 + 360 & lon >= 140 & lat < 0 & lat >= -55)
-fdat3 <- filter(fdat, lon <= -130 + 360 & lon >= 150 & lat <= -55 & lat >= -60)
+# fdat1 <- filter(fdat, lon <= -150 + 360 & lon >= 100 & lat >= 0)
+# fdat2 <- filter(fdat, lon <= -130 + 360 & lon >= 140 & lat < 0 & lat >= -55)
+# fdat3 <- filter(fdat, lon <= -130 + 360 & lon >= 150 & lat <= -55 & lat >= -60)
 
 # Bind and filter out fishing_hours > 0
-pdat <- rbind(fdat1, fdat2, fdat3)
+# pdat <- rbind(fdat1, fdat2, fdat3)
+
+pdat <- fdat
 
 ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.1, inherit.aes = FALSE) +
-  geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = .44, inherit.aes = FALSE, shape=15) +
+  geom_point(data = pdat, aes(lon, lat, color=richness), size = .44, inherit.aes = FALSE, shape=15) +
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
   # First segment to the east
   annotate("segment", x = -150 + 360, xend = -150 + 360, y = 0, yend = 60) +
@@ -322,7 +324,7 @@ ggplot(data = mp, aes(x = long, y = lat, group = group)) +
   theme(plot.title = element_text(hjust = 0.5),
         legend.position = c(.94, 0.27)) +
   # coord_cartesian(xlim = c(100, 250), ylim = c(-60, 60)) +
-  coord_sf(xlim = c(100, 250), ylim = c(-60, 60)) +
+  coord_sf(xlim = c(0, 360), ylim = c(-60, 60)) +
   guides(fill = FALSE,
        color = guide_colorbar(title.position = "top",
                               frame.colour = "black",
