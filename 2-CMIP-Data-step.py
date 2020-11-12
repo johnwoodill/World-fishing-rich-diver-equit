@@ -70,17 +70,22 @@ def proc_dat(file_, min_year, max_year, var_name):
     
     ### Calc mean, var, skew, and kurt
     vmean = outdat.groupby(['lat_lon'])['value'].apply(lambda x: np.mean(x)).reset_index()
+    vmax = outdat.groupby(['lat_lon'])['value'].apply(lambda x: np.max(x)).reset_index()
+    vmin = outdat.groupby(['lat_lon'])['value'].apply(lambda x: np.min(x)).reset_index()
     vvar = outdat.groupby(['lat_lon'])['value'].apply(lambda x: np.var(x)).reset_index()
     vskew = outdat.groupby(['lat_lon'])['value'].apply(lambda x: skew(x)).reset_index()
     vkurt = outdat.groupby(['lat_lon'])['value'].apply(lambda x: kurtosis(x)).reset_index()
+    
 
     ### Bind data    
-    voutdat = vmean.merge(vvar, how='left', on='lat_lon')
+    voutdat = vmean.merge(vmax, how='left', on='lat_lon')
+    voutdat = voutdat.merge(vmin, how='left', on='lat_lon')
+    voutdat = voutdat.merge(vvar, how='left', on='lat_lon')
     voutdat = voutdat.merge(vskew, how='left', on='lat_lon')
     voutdat = voutdat.merge(vkurt, how='left', on='lat_lon')
 
     ### rename columns
-    voutdat.columns = ['lat_lon', 'mean', 'var', 'skew', 'kurt']
+    voutdat.columns = ['lat_lon', 'mean', 'max', 'min', 'var', 'skew', 'kurt']
 
     ### Get lat/lon, var_name, and assign period
     lat = voutdat['lat_lon'].str.split("_", expand=True)[0].astype(float)
@@ -92,7 +97,7 @@ def proc_dat(file_, min_year, max_year, var_name):
                         lon = lon)
     
     ### Reorder columns and return
-    voutdat = voutdat[['period', 'lat_lon', 'lat', 'lon', 'var_name', 'mean', 'var', 'skew', 'kurt']]
+    voutdat = voutdat[['period', 'lat_lon', 'lat', 'lon', 'var_name', 'mean', 'max', 'min', 'var', 'skew', 'kurt']]
     return voutdat
     
     
@@ -115,6 +120,7 @@ def proc_dat(file_, min_year, max_year, var_name):
 # ssp126
 # ssp585
 
+print("Processing Historical Data")
 # -----------------------------------------------------------------
 # ### Historical Data
 arag_files = sorted(glob.glob('CMIP6_data/arag/historical/*'))[-2:]
@@ -146,7 +152,7 @@ hist_dat.to_hdf('data/full_CMIP6_historical.hdf', key='historical')
 
 hist_dat = pd.read_hdf('data/full_CMIP6_historical.hdf', key='historical')
 
-
+print("Processing 2015-2030")
 # -----------------------------------------------------------------
 # ### ssp126 Data 2015-2030
 arag_files = sorted(glob.glob('CMIP6_data/arag/ssp126/*'))[0]
@@ -184,7 +190,7 @@ ssp126_dat.to_hdf('data/full_CMIP6_ssp126_2015_2030.hdf', key='ssp126_2015_2030'
 
 
 
-
+print("Processing 2030-2045")
 # -----------------------------------------------------------------
 # ### ssp126 Data 2030-2045
 arag_files = sorted(glob.glob('CMIP6_data/arag/ssp126/*'))[0:2]
@@ -217,7 +223,7 @@ ssp126_dat.to_hdf('data/full_CMIP6_ssp126_2030_2045.hdf', key='ssp126_2030_2045'
 
 
 
-
+print("Processing 2045-2060")
 # -----------------------------------------------------------------
 # ### ssp126 Data 2045-2060
 arag_files = sorted(glob.glob('CMIP6_data/arag/ssp126/*'))[1:3]
@@ -253,7 +259,7 @@ ssp126_dat.to_hdf('data/full_CMIP6_ssp126_2045_2060.hdf', key='ssp126_2045_2060'
 
 
 
-
+print("Processing 2060-2075")
 # -----------------------------------------------------------------
 # ### ssp126 Data 2060-2075
 arag_files = sorted(glob.glob('CMIP6_data/arag/ssp126/*'))[2:4]
@@ -286,7 +292,7 @@ ssp126_dat.to_hdf('data/full_CMIP6_ssp126_2060_2075.hdf', key='ssp126_2060_2075'
 
 
 
-
+print("Processing 2075-2090")
 # -----------------------------------------------------------------
 # ### ssp126 Data 2075-2090
 arag_files = sorted(glob.glob('CMIP6_data/arag/ssp126/*'))[3:4]
@@ -316,4 +322,3 @@ ssp126_dat = pd.concat([ssp126_arag_data, ssp126_chl_data, ssp126_oxy_data, ssp1
 ssp126_dat.to_hdf('data/full_CMIP6_ssp126_2075_2090.hdf', key='ssp126_2075_2090')
 
 
-ssp126_dat.to_csv('data/test.csv', index=False)
