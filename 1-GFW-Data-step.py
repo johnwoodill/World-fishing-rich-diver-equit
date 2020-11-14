@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 import xarray
 import glob as glob
+import dask.dataframe as dd
+from dask.diagnostics import ProgressBar
+ProgressBar().register()
 
 
 def shan_div(indat):
@@ -46,6 +49,8 @@ vessel_dat = pd.read_csv('/data2/GFW_public/fishing_vessels/fishing_vessels.csv'
 # Merge on mmsi
 dat = dat.merge(vessel_dat, how='left', on='mmsi')
 
+dat.to_csv('data/full_GFW_public_10d.csv', index=False)
+
 ### Column names
 # Index(['date', 'lat_bin', 'lon_bin', 'flag', 'geartype',
 #        'vessel_hours', 'fishing_hours', 'mmsi_present', 'lat', 'lon',
@@ -77,10 +82,10 @@ dat = dat.dropna()
 #       dtype='object')
 # ------------------------------------------------------------------------------
 
-dat.to_csv('data/full_GFW_public_10d.csv')
+dat.to_csv('data/full_GFW_public_1d.csv')
 
 ### Load data
-dat = pd.read_csv('data/full_GFW_public_10d.csv', index_col=False)
+dat = pd.read_csv('data/full_GFW_public_1d.csv', index_col=False)
 
 ### Aggregate to 10th degree lon/lat: 
 
@@ -114,6 +119,60 @@ sdiv_dat = sdiv_dat.rename(columns={'year': 'obs_count'})
 shan_divi = sdiv_dat.groupby('lat_lon').apply(lambda x: shan_div(x))
 shan_divi = shan_divi.reset_index(drop=True)
 shan_divi.to_csv('data/shannon_div_equ.csv', index=False)
+
+
+
+### Aggregate to 10th degree lon/lat: 
+
+### Load data
+dat = pd.read_csv('data/full_GFW_public_10d.csv', index_col=False)
+
+dat = dat.assign(lon = round(dat['lon'], 1),
+                 lat = round(dat['lat'], 1),
+                 year = pd.DatetimeIndex(dat['date']).year)
+
+dat = dat.assign(lon = np.where(dat['lon'] == -0.0, 0.0, dat['lon']))
+dat = dat.assign(lat = np.where(dat['lat'] == -0.0, 0.0, dat['lat']))
+
+dat = dat.assign(lat_lon = dat['lat'].astype(str) + "_" + dat['lon'].astype(str))
+
+# Total Fishing Effort
+feffort_dat = dat.groupby(['year', 'lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
+feffort_dat = dat.groupby(['lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+feffort_dat.to_csv('data/total_fishing_effort_1d.csv', index=False)
+
+# Total Fishing Effort by nation
+feffort_nat_dat = dat.groupby(['year', 'lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
+feffort_nat_dat = dat.groupby(['lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+feffort_nat_dat.to_csv('data/total_fishing_effort_nation_1d.csv', index=False)
+
+
+# Total Fishing Effort by geartype
+feffort_gear_nat_dat = dat.groupby(['year', 'lat_lon', 'geartype']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
+feffort_gear_nat_dat = dat.groupby(['lat_lon', 'geartype']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+feffort_gear_nat_dat.to_csv('data/total_fishing_effort_gear_1d.csv', index=False)
+
+
+# Species Richness
+richness_dat = dat.groupby(['lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'flag': 'nunique'}).reset_index()
+richness_dat = richness_dat.rename(columns={'flag': 'richness'})
+richness_dat.to_csv('data/total_species_richness_1d.csv', index=False)
+
+
+# Shannon Diversity Index
+sdiv_dat = dat.groupby(['lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'year': 'count'}).reset_index()
+sdiv_dat = sdiv_dat.rename(columns={'year': 'obs_count'})
+sdiv_dat = dd.from_pandas(sdiv_dat, npartitions = 50)
+
+
+shan_divi = sdiv_dat.groupby('lat_lon').apply(lambda x: shan_div(x)).compute(scheduler='processes')
+shan_divi = shan_divi.reset_index(drop=True)
+shan_divi.to_csv('data/shannon_div_equ_1d.csv', index=False)
+
+
+
+
+
 
 
 # Flag Interactions
@@ -184,3 +243,17 @@ np.save('data/flag_interactions_matrix.npy', mat_retdat)
 
 # fint_dat = dat.groupby(['lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum', 'mmsi': 'nunique'}).reset_index()
 # fint_dat.to_csv("data/WCP_total_fishing_effort_by_nation.csv", index=False)
+
+
+
+
+from pylab import *
+
+cmap = cm.get_cmap('nipy_spectral', 10)    # PiYG
+
+for i in range(cmap.N):
+    rgb = cmap(i)[:3] # will return rgba, we take only first 3 so we get rgb
+    print(matplotlib.colors.rgb2hex(rgb))
+    
+    
+    
