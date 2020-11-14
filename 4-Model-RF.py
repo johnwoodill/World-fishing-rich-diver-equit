@@ -57,12 +57,9 @@ def procRichness(dat):
     X = X.drop(columns='richness')
 
     # ### Predictors that reduce model accuracy
-    # X = X[X.columns.drop(list(X.filter(regex='skew')))]
-    # X = X[X.columns.drop(list(X.filter(regex='kurt')))]
-    X = X[X.columns.drop(list(X.filter(regex='gear')))]
-    
-    # X = preprocessing.scale(X)
-        
+    X = X[X.columns.drop(list(X.filter(regex='skew')))]
+    X = X[X.columns.drop(list(X.filter(regex='kurt')))]
+            
     return X, y
 
 
@@ -77,20 +74,28 @@ def procRichness(dat):
 # reg_dat = reg_dat.drop_duplicates()
 
 
-
+full_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
 X, y = procRichness(full_dat)
 
-
 # ### Random Forest Classifier
+clf = RandomForestClassifier()
+clf = RandomForestClassifier(n_estimators = 1000, min_samples_split = 2, min_samples_leaf = 1,
+                             max_features = 'auto', max_depth = 10, bootstrap = False)
+
+
 np.mean(cross_val_score(clf, X, y, cv=10))
 
+# >>> np.mean(cross_val_score(clf, X, y, cv=10))
+# 0.7194471922804744
 
 
+clf_fit = clf.fit(X_2000, y_2000)
+fea_import = pd.DataFrame({'variable': X_2000.columns , 'importance': clf.feature_importances_})
 
+fea_import.sort_values('importance', ascending=False).reset_index(drop=True).iloc[0:20, :]
 
-
-
-
+# ### Results from hyper-parameter tuning
+# {'n_estimators': 1000, 'min_samples_split': 2, 'min_samples_leaf': 1, 'max_features': 'auto', 'max_depth': 10, 'bootstrap': False}
 
 
 # ------------------
@@ -98,8 +103,6 @@ np.mean(cross_val_score(clf, X, y, cv=10))
 full_dat_ssp126_2000_2014_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
 full_dat_ssp126_2000_2014_dat.columns = full_dat_ssp126_2000_2014_dat.columns.str.replace("_2000-2014", "")
 X_2000, y_2000 = procRichness(full_dat_ssp126_2000_2014_dat)
-
-clf = RandomForestClassifier()
 
 clf_fit = clf.fit(X_2000, y_2000)
 y_pred_2015 = clf_fit.predict(X_2000)
@@ -187,5 +190,6 @@ savedat = savedat.merge(dat_2030, on=['lat', 'lon'], how='left')
 savedat = savedat.merge(dat_2045, on=['lat', 'lon'], how='left')
 savedat = savedat.merge(dat_2060, on=['lat', 'lon'], how='left')
 savedat = savedat.merge(dat_2075, on=['lat', 'lon'], how='left')
+
 
 savedat.to_csv('data/rf_model_results.csv', index=False)
