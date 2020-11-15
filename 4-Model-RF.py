@@ -14,7 +14,8 @@ import keras
 from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from sklearn import preprocessing
 from sklearn.multiclass import OneVsRestClassifier
-
+from sklearn.model_selection import KFold
+from sklearn.metrics import accuracy_score
 
 
 def rmse(y_true, y_pred):
@@ -64,27 +65,52 @@ def procRichness(dat):
 
 
 
-# Subset within WCP
-# fdat1 = full_dat[(full_dat['lon'] <= -150 + 360) & (full_dat['lon'] >= 100) & (full_dat['lat'] >= 0)]
-# fdat2 = full_dat[(full_dat['lon'] <= -130 + 360) & (full_dat['lon'] >= 140) & (full_dat['lat'] < 0) & (full_dat['lat'] >= -55)]
-# fdat3 = full_dat[(full_dat['lon'] <= -130 + 360) & (full_dat['lon'] >= 150) & (full_dat['lat'] <= -55) & (full_dat['lat'] >= -60)]
-
-# Bind data
-# reg_dat = pd.concat([fdat1, fdat2, fdat3]).reset_index(drop=True)
-# reg_dat = reg_dat.drop_duplicates()
 
 
+# -----------------------------------------------
+# ### K-Fold Cross-validation
 full_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
+
 X, y = procRichness(full_dat)
 
-# ### Random Forest Classifier
-clf = RandomForestClassifier()
-clf = RandomForestClassifier(n_estimators = 1000, min_samples_split = 2, min_samples_leaf = 1,
+kf = KFold(n_splits=10)
+kf.get_n_splits(X)
+
+outdat = pd.DataFrame()
+cv = 0
+for train_index, test_index in kf.split(X):
+    cv = cv + 1
+    ### Setup Classifier
+    clf = RandomForestClassifier(n_estimators = 1000, min_samples_split = 2, min_samples_leaf = 1,
                              max_features = 'auto', max_depth = 10, bootstrap = False)
+    
+    ### Get train/test splits
+    X_train, X_test = X[X.index.isin(train_index)], X[X.index.isin(test_index)]
+    y_train, y_test = y[y.index.isin(train_index)], y[y.index.isin(test_index)]
+    
+    ### Fit training Set
+    clf.fit(X_train, y_train)
+    
+    ### Predict test set
+    y_pred = clf.predict(X_test)    
+    
+    ### Get accuracy score
+    acc_score = accuracy_score(y_test, y_pred)
+    
+    ### Bind data
+    indat = pd.DataFrame({'lat': X_test['lat'], 'lon': X_test['lon'], 'cv': cv, 'y_true': y_test, 'y_pred': y_pred, 'score': acc_score})
+    outdat = pd.concat([outdat, indat])
+    print(f"[{cv}] Cross-validation complete - Accuracy Score: {round(acc_score, 4)}")
 
-
+    
+outdat.to_csv('data/cross_validation_results.csv', index=False)
+    
+# ### Random Forest Classifier
+clf = RandomForestClassifier(n_estimators = 1000, min_samples_split = 2, min_samples_leaf = 1,
+                            max_features = 'auto', max_depth = 10, bootstrap = False)
 np.mean(cross_val_score(clf, X, y, cv=10))
 
+#
 # >>> np.mean(cross_val_score(clf, X, y, cv=10))
 # 0.7194471922804744
 
