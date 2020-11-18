@@ -1,0 +1,53 @@
+Data Description:
+ 	- GFW AIS: 10d resolution from 2012 - 2016
+ 		- flag
+ 		- mmsi
+ 		- fishing hours
+ 		- gear type
+
+ 	- Measure of Diversity (dependent variable binned into none, low, medium, high)
+ 		- Richness - # of unique flags in a grid cell
+ 		- Shannon Diversity - calculated from # obs in grid and shannon div function
+
+	- CMIP6: 1d resolution at 15-year averages (historical: 2000-2014, ssp126 projections: 2014 - 2090)
+	    - ARAGOS: Aragonite concentration
+        - CHLOS: Mass Concentration of Total Phytoplankton expressed as Chlorophyll
+        - O2SATOS: Surface Dissolved Oxygen Concentration at Saturation
+        - PHOS: ph
+        - SOS: Sea Surface Salinity
+        - SIOS: Surface Total Dissolved Inorganic Silicon Concentration
+        - TOS: Sea Surface Temperature
+        - ZOOCOS: Surface Zooplankton Carbon Concentration
+
+ 	- Features (at each grid)
+ 		- CMIP6 data (mean, min, max, variance, skewness, kurtosis)
+ 		- lat/lon
+ 		- distance to coast
+ 		- distance to major port
+ 		- located inside EEZ
+ 		- located inside MPA
+ 		- located in major RFMO
+ 		- flag has been present before
+ 		- gear type has been present before
+
+Data Step:
+	1. Regrid GFW data to 1d to match CMIP6 (sum at each grid and year)
+	2. Calculate measure of diversity using GFW and average across time series
+	3. Bind CMIP6 variables across grids and average every 15-year interval
+	4. Calculate features of CMIP6 grids (distance to coast, etc)
+	5. Bind GFW and CMIP6 data together by grids (1d lat/lon)
+
+Model Step:
+	1. Estimate Random Forest Classification for each measure of diversity
+	2. Cross-validation Hyper-parameter tuning to increase accuracy (5-10% increase)
+	3. 10-fold cross validation to measure train/test accuracy
+	4. Train model on full data set
+	5. Predict using CMIP6 projection every 15 years
+
+Summary Stats:
+	- 46,129 # obs (unique grids)
+	- 188 # features
+	- 122 # flags
+	- Classification Accuracy
+		- Richness - 84.31%
+		- Shannon Div - 76.45%

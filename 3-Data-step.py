@@ -119,7 +119,7 @@ def eez_check(ndat):
     for territory in unique_eez:
         arg = eez_shp[eez_shp.Territory1 == territory].reset_index(drop=True)
         pnts = gpd.GeoDataFrame(geometry=[Point(lon, lat)])
-        polys = gpd.GeoSeries({'territory': arg.geometry})
+        polys = gpd.GeoSeries({'territory': arg.geometry.values[0]})
         check = pnts.assign(**{key: pnts.within(geom) for key, geom in polys.items()})
         check_ = check.territory.values[0]
         if check_ == True:
@@ -140,7 +140,7 @@ def mpa_check(ndat):
     for mpa_loc in unique_mpa:
         arg = mpa_shp[mpa_shp.NAME == mpa_loc].reset_index(drop=True)
         pnts = gpd.GeoDataFrame(geometry=[Point(lon, lat)])
-        polys = gpd.GeoSeries({'mpa_loc': arg.geometry})
+        polys = gpd.GeoSeries({'mpa_loc': arg.geometry.values[0]})
         check = pnts.assign(**{key: pnts.within(geom) for key, geom in polys.items()})
         check_ = check.mpa_loc.values[0]
         if check_ == True:
@@ -148,6 +148,32 @@ def mpa_check(ndat):
             return outdat
     outdat = pd.DataFrame({'lat': [lat], 'lon': [lon], 'mpa': [0]})
     return outdat
+
+
+
+
+# Assign RFMO indicator for GFW
+def rfmo_check(ndat):
+    lon = ndat['lon'].iat[0]
+    lat = ndat['lat'].iat[0]
+    # print("MPA:", lon, lat)
+    # lon = np.where(lon < 180, lon + 360, lon)   # Shape file 0-360 lon
+    for rfmo_loc in unique_rfmo:
+        arg = rfmo_shp[rfmo_shp.RFMO == rfmo_loc].reset_index(drop=True)
+        pnts = gpd.GeoDataFrame(geometry=[Point(lon, lat)])
+        polys = gpd.GeoSeries({'rfmo_loc': arg.geometry.values[0]})
+        check = pnts.assign(**{key: pnts.within(geom) for key, geom in polys.items()})
+        check_ = check.rfmo_loc.values[0]
+        if check_ == True:
+            if rfmo_loc == "ICCAT_East" or rfmo_loc == "ICCAT_West":
+                rfmo_loc = "ICCAT"
+            outdat = pd.DataFrame({'lat': [lat], 'lon': [lon], 'rfmo': [rfmo_loc]})
+            return outdat
+    outdat = pd.DataFrame({'lat': [lat], 'lon': [lon], 'rfmo': [0]})
+    return outdat
+
+
+
 
 
 
@@ -163,6 +189,9 @@ unique_eez = eez_shp.Territory1.unique()
 
 mpa_shp = gpd.read_file("data/mpa_shapefiles/vlmpa.shp")
 unique_mpa = mpa_shp.NAME.unique()
+
+rfmo_shp = gpd.read_file("data/RFMO_shapefile/RFMO_coords.shp")
+unique_rfmo = rfmo_shp.RFMO.unique()
 
 # ### Calc whether country has ever fished at grid
 feffort_nat_dat = pd.read_csv('data/total_fishing_effort_nation.csv')
@@ -229,10 +258,13 @@ mpa_check_dat = mpa_check_dat.reset_index().drop(columns='level_1')
 mpa_check_dat.to_csv('data/mpa_check_dat.csv', index = False)
 
 
+# ### RFMO Check
+rfmo_check_dat = cmip_coords.groupby('lat_lon').apply(lambda x: rfmo_check(x)).compute(scheduler='processes')
+rfmo_check_dat = rfmo_check_dat.reset_index().drop(columns='level_1')
+rfmo_check_dat.to_csv('data/rfmo_check_dat.csv', index = False)
 
 
-
-
+# -----------------------------------------------------------------
 
 # ### Bind data
 feffort_dat = pd.read_csv('data/total_fishing_effort.csv')
@@ -243,6 +275,8 @@ port_dat = pd.read_csv('data/port_dat.csv')
 coast_dist_dat = pd.read_csv('data/coast_dist_dat.csv')
 eez_check_dat = pd.read_csv('data/eez_check_dat.csv')
 mpa_check_dat = pd.read_csv('data/mpa_check_dat.csv')
+rfmo_check_dat = pd.read_csv('data/rfmo_check_dat.csv')
+
 
 
 full_dat = feffort_dat.merge(shan_divi, how='left', on=['lat_lon', 'lon', 'lat'])
@@ -268,31 +302,37 @@ hist_dat = proc_pivot(hist_dat)
 hist_dat = hist_dat.merge(port_dat, how='left', on=['lat_lon'])
 hist_dat = hist_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 hist_dat = hist_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+hist_dat = hist_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 
 ssp126_2015_2030_dat = proc_pivot(ssp126_2015_2030_dat)
 ssp126_2015_2030_dat = ssp126_2015_2030_dat.merge(port_dat, how='left', on=['lat_lon'])
 ssp126_2015_2030_dat = ssp126_2015_2030_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2015_2030_dat = ssp126_2015_2030_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp126_2015_2030_dat = ssp126_2015_2030_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 
 ssp126_2030_2045_dat = proc_pivot(ssp126_2030_2045_dat)
 ssp126_2030_2045_dat = ssp126_2030_2045_dat.merge(port_dat, how='left', on=['lat_lon'])
 ssp126_2030_2045_dat = ssp126_2030_2045_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2030_2045_dat = ssp126_2030_2045_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp126_2030_2045_dat = ssp126_2030_2045_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 
 ssp126_2045_2060_dat = proc_pivot(ssp126_2045_2060_dat)
 ssp126_2045_2060_dat = ssp126_2045_2060_dat.merge(port_dat, how='left', on=['lat_lon'])
 ssp126_2045_2060_dat = ssp126_2045_2060_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2045_2060_dat = ssp126_2045_2060_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp126_2045_2060_dat = ssp126_2045_2060_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 
 ssp126_2060_2075_dat = proc_pivot(ssp126_2060_2075_dat)
 ssp126_2060_2075_dat = ssp126_2060_2075_dat.merge(port_dat, how='left', on=['lat_lon'])
 ssp126_2060_2075_dat = ssp126_2060_2075_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2060_2075_dat = ssp126_2060_2075_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp126_2060_2075_dat = ssp126_2060_2075_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 
 ssp126_2075_2090_dat = proc_pivot(ssp126_2075_2090_dat)
 ssp126_2075_2090_dat = ssp126_2075_2090_dat.merge(port_dat, how='left', on=['lat_lon'])
 ssp126_2075_2090_dat = ssp126_2075_2090_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2075_2090_dat = ssp126_2075_2090_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp126_2075_2090_dat = ssp126_2075_2090_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 
 
 

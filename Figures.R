@@ -219,12 +219,7 @@ fdat %>% group_by(flag) %>% summarise(sum_fishing_hours = sum(fishing_hours)) %>
 
 top_5 <- c("TWN", "CHN", "JPN", "KOR", "ESP")
 
-fdat$lon <- ifelse(fdat$lon < 0, fdat$lon + 360, fdat$lon)
 
-# Subset within WCP
-fdat1 <- filter(fdat, lon <= -150 + 360 & lon >= 100 & lat >= 0)
-fdat2 <- filter(fdat, lon <= -130 + 360 & lon >= 140 & lat < 0 & lat >= -55)
-fdat3 <- filter(fdat, lon <= -130 + 360 & lon >= 150 & lat <= -55 & lat >= -60)
 
 # Bind and filter out fishing_hours > 0
 pdat <- rbind(fdat1, fdat2, fdat3)
