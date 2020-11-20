@@ -19,7 +19,12 @@ mpas <- st_shift_longitude(mpas)
 mpas <- read_sf('data/mpa_shapefiles/vlmpa.shp')
 mpas <- st_shift_longitude(mpas)
 
+rfmos <- read_sf('data/RFMO_coords.shp')
+rfmos 
+
 fdat <- as.data.frame(read_csv("data/total_fishing_effort.csv"))
+
+
 
 fdat$lon <- ifelse(fdat$lon < 0, fdat$lon + 360, fdat$lon)
 
@@ -52,17 +57,18 @@ ggplot() +
 
 ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.1, inherit.aes = FALSE) +
+  geom_sf(data = rfmos, color = 'black', alpha = 0.5, fill = 'black', size = 0.1, inherit.aes = FALSE) +
   geom_point(data = pdat, aes(lon, lat, color=fishing_hours), size = .44, inherit.aes = FALSE, shape=15) +
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
   # stat_contour(data = pdat, aes(x=lon, y=lat, z=fishing_hours, fill=..level.., group=1), geom="polygon") +
   # First segment to the east
-  annotate("segment", x = -150 + 360, xend = -150 + 360, y = 0, yend = 60) +
-  annotate("segment", x = -150 + 360, xend = -130 + 360, y = 0, yend = 0) +
-  annotate("segment", x = -130 + 360, xend = -130 + 360, y = 0, yend = -60) +
-  annotate("segment", x = -130 + 360, xend = -210 + 360, y = -60, yend = -60) +
-  annotate("segment", x = -210 + 360, xend = -210 + 360, y = -60, yend = -55) +
-  annotate("segment", x = -210 + 360, xend = -220 + 360, y = -55, yend = -55) +
-  annotate("segment", x = -220 + 360, xend = -220 + 360, y = -55, yend = -38) +
+  # annotate("segment", x = -150 + 360, xend = -150 + 360, y = 0, yend = 60) +
+  # annotate("segment", x = -150 + 360, xend = -130 + 360, y = 0, yend = 0) +
+  # annotate("segment", x = -130 + 360, xend = -130 + 360, y = 0, yend = -60) +
+  # annotate("segment", x = -130 + 360, xend = -210 + 360, y = -60, yend = -60) +
+  # annotate("segment", x = -210 + 360, xend = -210 + 360, y = -60, yend = -55) +
+  # annotate("segment", x = -210 + 360, xend = -220 + 360, y = -55, yend = -55) +
+  # annotate("segment", x = -220 + 360, xend = -220 + 360, y = -55, yend = -38) +
   geom_polygon()  +
   scale_color_viridis(direction = -1) +
   theme_bw() +
@@ -70,7 +76,7 @@ ggplot(data = mp, aes(x = long, y = lat, group = group)) +
        title="Average Annual Fishing Effort in the Western-Central Pacific Ocean \n 2012-2016", color=NULL) +
   theme(plot.title = element_text(hjust = 0.5),
         legend.position = c(.94, 0.27)) +
-  coord_sf(xlim = c(100, 250), ylim = c(-60, 60)) +
+  coord_sf(xlim = c(100, 250), ylim = c(-80, 80)) +
   guides(fill = FALSE,
        color = guide_colorbar(title.position = "top",
                               frame.colour = "black",
@@ -255,7 +261,7 @@ p1 <- ggplot(data = mp, aes(x = long, y = lat, group = group)) +
          title=paste0("USA-", flag_, " Interactions"), color=NULL) +
     theme(plot.title = element_text(hjust = 0.5),
           legend.position = c(.916, 0.092)) +
-    coord_sf(xlim = c(100, 250), ylim = c(-60, 60)) +
+    coord_sf(xlim = c(0, 360), ylim = c(-80, 80), expand = FALSE) +
     guides(color = guide_legend(override.aes = list(size = 3))) +
     NULL
   

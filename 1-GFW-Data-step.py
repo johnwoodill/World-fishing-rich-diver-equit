@@ -90,19 +90,19 @@ dat = pd.read_csv('data/full_GFW_public_1d.csv', index_col=False)
 ### Aggregate to 10th degree lon/lat: 
 
 # Total Fishing Effort
-feffort_dat = dat.groupby(['year', 'lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
-feffort_dat = dat.groupby(['lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+feffort_dat = dat.groupby(['year', 'lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum', 'mmsi': 'count'}).reset_index()
+feffort_dat = feffort_dat.groupby(['lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean', 'mmsi': 'mean'}).reset_index()
 feffort_dat.to_csv('data/total_fishing_effort.csv', index=False)
 
 # Total Fishing Effort by nation
 feffort_nat_dat = dat.groupby(['year', 'lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
-feffort_nat_dat = dat.groupby(['lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+feffort_nat_dat = feffort_nat_dat.groupby(['lat_lon', 'flag']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
 feffort_nat_dat.to_csv('data/total_fishing_effort_nation.csv', index=False)
 
 
 # Total Fishing Effort by geartype
 feffort_gear_nat_dat = dat.groupby(['year', 'lat_lon', 'geartype']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
-feffort_gear_nat_dat = dat.groupby(['lat_lon', 'geartype']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+feffort_gear_nat_dat = feffort_gear_nat_dat.groupby(['lat_lon', 'geartype']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
 feffort_gear_nat_dat.to_csv('data/total_fishing_effort_gear.csv', index=False)
 
 

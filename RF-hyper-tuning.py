@@ -50,6 +50,41 @@ def procRichness(dat):
 
 
 
+def procEffortReg(dat):
+    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'H', 'eez', 'mpa', 'rfmo'])
+    
+    dat = dat.assign(lat_x_lon = dat['lat'] * dat['lon'],
+                     mmsi = dat['mmsi'].fillna(0),
+                     fishing_hours = dat['fishing_hours'].fillna(0))
+
+    dat = dat.drop(columns='port')
+
+    # dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
+    # dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
+    # dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
+    
+    X = dat
+    
+    X = X.dropna().reset_index(drop=True)
+    
+    y = X['fishing_hours'] / X['mmsi']
+    y = y.fillna(0)
+    y = np.log(1 + y)
+
+    X = X.drop(columns=['fishing_hours', 'mmsi'])
+
+    # ### Predictors that reduce model accuracy
+    # X = X[X.columns.drop(list(X.filter(regex='gear')))]
+    X = X[X.columns.drop(list(X.filter(regex='present')))]
+    X = X[X.columns.drop(list(X.filter(regex='skew')))]
+    X = X[X.columns.drop(list(X.filter(regex='kurt')))]
+            
+    return X, y
+
+
+
+
+
 
 # Number of trees in random forest
 n_estimators = [int(x) for x in np.linspace(start = 200, stop = 2000, num = 10)]
@@ -58,7 +93,7 @@ n_estimators = [int(x) for x in np.linspace(start = 200, stop = 2000, num = 10)]
 max_features = ['auto', 'sqrt']
 
 # Maximum number of levels in tree
-max_depth = [int(x) for x in np.linspace(10, 110, num = 11)]
+max_depth = [int(x) for x in np.linspace(5, 50, num = 10)]
 max_depth.append(None)
 
 # Minimum number of samples required to split a node
@@ -84,16 +119,41 @@ pprint(random_grid)
 
 # Use the random grid to search for best hyperparameters
 # First create the base model to tune
-clf = RandomForestClassifier()
+# clf = RandomForestClassifier()
+
+# full_dat_ssp126_2000_2014_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
+# full_dat_ssp126_2000_2014_dat.columns = full_dat_ssp126_2000_2014_dat.columns.str.replace("_2000-2014", "")
+# X_2000, y_2000 = procRichness(full_dat_ssp126_2000_2014_dat)
+
+# # Random search of parameters, using 3 fold cross validation, 
+# # search across 100 different combinations, and use all available cores
+
+# rf_random = RandomizedSearchCV(estimator = clf, param_distributions = random_grid, n_iter = 100, cv = 10, verbose=2, random_state=42, n_jobs = -1)
+# # Fit the random search model
+
+# rf_random.fit(X_2000, y_2000)
+
+
+# print(rf_random.best_params_)
+
+
+
+
+
+
+clf = RandomForestRegressor()
 
 full_dat_ssp126_2000_2014_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
 full_dat_ssp126_2000_2014_dat.columns = full_dat_ssp126_2000_2014_dat.columns.str.replace("_2000-2014", "")
-X_2000, y_2000 = procRichness(full_dat_ssp126_2000_2014_dat)
+X_2000, y_2000 = procEffortReg(full_dat_ssp126_2000_2014_dat)
 
 # Random search of parameters, using 3 fold cross validation, 
 # search across 100 different combinations, and use all available cores
 
-rf_random = RandomizedSearchCV(estimator = clf, param_distributions = random_grid, n_iter = 100, cv = 10, verbose=2, random_state=42, n_jobs = -1)
+rf_random = RandomizedSearchCV(estimator = clf, 
+                               param_distributions = random_grid, n_iter = 100, 
+                               cv = 10, verbose=5, random_state=42, n_jobs = -1,
+                               scoring = 'neg_mean_squared_error')
 # Fit the random search model
 
 rf_random.fit(X_2000, y_2000)

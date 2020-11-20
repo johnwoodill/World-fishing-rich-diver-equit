@@ -193,33 +193,6 @@ unique_mpa = mpa_shp.NAME.unique()
 rfmo_shp = gpd.read_file("data/RFMO_shapefile/RFMO_coords.shp")
 unique_rfmo = rfmo_shp.RFMO.unique()
 
-# ### Calc whether country has ever fished at grid
-feffort_nat_dat = pd.read_csv('data/total_fishing_effort_nation.csv')
-unique_flags = feffort_nat_dat['flag'].unique()
-
-ll_dat = feffort_nat_dat.groupby('lat_lon').agg({'lat': 'mean', 'lon': 'mean'}).sort_values(['lon', 'lat']).reset_index()
-for flag_ in unique_flags:
-    indat = feffort_nat_dat[['lat_lon', 'lat', 'lon', 'flag']]
-    indat = indat[indat['flag'] == flag_]
-    indat = indat.assign(flag = 1)
-    indat = indat.rename(columns={'flag': f"{flag_}_present"})
-    ll_dat = ll_dat.merge(indat, how='left', on=['lat_lon', 'lat', 'lon']).fillna(0)
-    
-    
-    
-# ### Calc whether geartype has ever fished at grid
-feffort_gear_dat = pd.read_csv('data/total_fishing_effort_gear.csv')
-unique_geartype = feffort_gear_dat['geartype'].unique()
-
-gg_dat = feffort_gear_dat.groupby('lat_lon').agg({'lat': 'mean', 'lon': 'mean'}).sort_values(['lon', 'lat']).reset_index()
-for gear_ in unique_geartype:
-    indat = feffort_gear_dat[['lat_lon', 'lat', 'lon', 'geartype']]
-    indat = indat[indat['geartype'] == gear_]
-    indat = indat.assign(geartype = 1)
-    indat = indat.rename(columns={'geartype': f"{gear_}_gear"})
-    gg_dat = gg_dat.merge(indat, how='left', on=['lat_lon', 'lat', 'lon']).fillna(0)
-    
-
 # ### Get CMIP Coords with Dask
 cmip_data = pd.read_hdf('data/full_CMIP6_historical.hdf', key='historical')
 cmip_coords = cmip_data.groupby('lat_lon').agg({'lat': 'mean', 'lon': 'mean'}).sort_values(['lon', 'lat']).reset_index()
@@ -265,6 +238,34 @@ rfmo_check_dat.to_csv('data/rfmo_check_dat.csv', index = False)
 
 
 # -----------------------------------------------------------------
+
+# ### Calc whether country has ever fished at grid
+feffort_nat_dat = pd.read_csv('data/total_fishing_effort_nation.csv')
+unique_flags = feffort_nat_dat['flag'].unique()
+
+ll_dat = feffort_nat_dat.groupby('lat_lon').agg({'lat': 'mean', 'lon': 'mean'}).sort_values(['lon', 'lat']).reset_index()
+for flag_ in unique_flags:
+    indat = feffort_nat_dat[['lat_lon', 'lat', 'lon', 'flag']]
+    indat = indat[indat['flag'] == flag_]
+    indat = indat.assign(flag = 1)
+    indat = indat.rename(columns={'flag': f"{flag_}_present"})
+    ll_dat = ll_dat.merge(indat, how='left', on=['lat_lon', 'lat', 'lon']).fillna(0)
+    
+    
+    
+# ### Calc whether geartype has ever fished at grid
+feffort_gear_dat = pd.read_csv('data/total_fishing_effort_gear.csv')
+unique_geartype = feffort_gear_dat['geartype'].unique()
+
+gg_dat = feffort_gear_dat.groupby('lat_lon').agg({'lat': 'mean', 'lon': 'mean'}).sort_values(['lon', 'lat']).reset_index()
+for gear_ in unique_geartype:
+    indat = feffort_gear_dat[['lat_lon', 'lat', 'lon', 'geartype']]
+    indat = indat[indat['geartype'] == gear_]
+    indat = indat.assign(geartype = 1)
+    indat = indat.rename(columns={'geartype': f"{gear_}_gear"})
+    gg_dat = gg_dat.merge(indat, how='left', on=['lat_lon', 'lat', 'lon']).fillna(0)
+    
+
 
 # ### Bind data
 feffort_dat = pd.read_csv('data/total_fishing_effort.csv')

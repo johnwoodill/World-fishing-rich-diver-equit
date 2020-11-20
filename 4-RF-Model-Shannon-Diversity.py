@@ -4,7 +4,7 @@ import numpy as np
 from sklearn import model_selection
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn import metrics
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, KFold
 
 from keras.models import Sequential
 from keras.layers import Dense, LSTM, Dropout
@@ -17,19 +17,17 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.metrics import accuracy_score
 
 def procShannon(dat):
-    dat = dat.drop(columns=['fishing_hours', 'richness', 'E', 'lat_lon'])
+    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'eez', 'mpa', 'rfmo', 'mmsi'])
     
-    dat = dat.assign(eez = dat['eez'].fillna(0),
-                     mpa = dat['mpa'].fillna(0),
-                    rfmo = dat['rfmo'].fillna(0),
+    dat = dat.assign(lat_x_lon = dat['lat'] * dat['lon'],
                      H = dat['H'].fillna(0),
-                     lat_x_lon = dat['lat'] * dat['lon'])
+                     fishing_hours = dat['fishing_hours'].fillna(0))
 
     dat = dat.drop(columns='port')
 
-    dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
-    dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
-    dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
+    # dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
+    # dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
+    # dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
     
     X = dat
     
@@ -53,6 +51,8 @@ def procShannon(dat):
     X = X.drop(columns='H')
 
     # ### Predictors that reduce model accuracy
+    X = X[X.columns.drop(list(X.filter(regex='gear')))]
+    X = X[X.columns.drop(list(X.filter(regex='present')))]
     # X = X[X.columns.drop(list(X.filter(regex='skew')))]
     # X = X[X.columns.drop(list(X.filter(regex='kurt')))]
             
@@ -76,8 +76,10 @@ cv = 0
 for train_index, test_index in kf.split(X):
     cv = cv + 1
     ### Setup Classifier
-    clf = RandomForestClassifier(n_estimators = 1000, min_samples_split = 2, min_samples_leaf = 1,
-                             max_features = 'auto', max_depth = 10, bootstrap = False)
+    # clf = RandomForestClassifier(n_estimators = 1000, min_samples_split = 2, min_samples_leaf = 1,
+    #                          max_features = 'auto', max_depth = 10, bootstrap = False)
+    
+    clf = RandomForestClassifier()
     
     ### Get train/test splits
     X_train, X_test = X[X.index.isin(train_index)], X[X.index.isin(test_index)]
@@ -102,8 +104,10 @@ outdat.to_csv('data/shannon_cross_validation_results.csv', index=False)
     
     
 # ### Random Forest Classifier
-clf = RandomForestClassifier(n_estimators = 1000, min_samples_split = 2, min_samples_leaf = 1,
-                            max_features = 'auto', max_depth = 10, bootstrap = False)
+# clf = RandomForestClassifier(n_estimators = 1000, min_samples_split = 2, min_samples_leaf = 1,
+#                             max_features = 'auto', max_depth = 10, bootstrap = False)
+
+clf = RandomForestClassifier()
 
 # np.mean(cross_val_score(clf, X, y, cv=10))
 
