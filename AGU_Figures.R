@@ -66,14 +66,14 @@ mpas <- st_shift_longitude(mpas)
 rfmos <- read_sf('data/RFMO_shapefile/RFMO_coords.shp')
 
 # Setup map
-mp1 <- fortify(map(fill=TRUE, plot=FALSE))
+mp1 <- ggplot2::fortify(maps::map(fill=TRUE, plot=FALSE))
 mp2 <- mp1
 mp2$long <- mp2$long + 360
 mp2$group <- mp2$group + max(mp2$group) + 1
 mp <- rbind(mp1, mp2)
 
 nipy_spectral <- c("#000000", "#6a009d", "#0035dd", "#00a4bb", "#009b0f",
-                   "#00e100", "#ccf900", "#ffb000", "#e50000", "#cccccc")
+                   "#00e100", "#ccf900", "#ffb000", "#e50000")
 
 
 seascape_labels <- data.frame(seascape_class = seq(1, 33),
@@ -133,24 +133,25 @@ fdat1$flag <- ifelse(fdat1$flag == "JPN", "Japan", fdat1$flag)
 
 ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.1, inherit.aes = FALSE) +
-  geom_point(data = fdat1, aes(lon, lat, color=log(1 + fishing_hours)), size = 0.10, inherit.aes = FALSE, shape=15) +
+  geom_tile(data = fdat1, aes(lon, lat, fill=log(1 + fishing_hours)), alpha = 0.85, inherit.aes = FALSE) + 
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
   geom_polygon()  +
-  # scale_colour_gradientn(colours = rev(rainbow(5))) +
-  scale_color_gradientn(colors = nipy_spectral[c(1:6, 8, 9, 9, 9, 10, 10)]) +
-  theme_bw() +
+  theme_map() +
+  scale_fill_gradientn(colors = nipy_spectral, limits = c(0, 8), breaks = seq(0, 8, 1)) +
   labs(x=NULL, y=NULL, 
-       title="Fishing Effort by Country (log cumulative hours 2012-2016)", color=NULL) +
+       title=NULL, fill="Fishing Effort by Country (log cumulative hours 2012-2016)") +
   theme(plot.title = element_text(hjust = 0.5),
-        legend.position = c(.965, 0.15),
-        legend.box.background = element_rect(colour = "black")) +
+        legend.position = "bottom",
+        legend.title.align=0.5,
+        panel.spacing = unit(0.5, "lines"),
+        panel.border = element_rect(colour = "black", fill=NA, size=.5)) +
   coord_sf(xlim = c(0, 360), ylim = c(-80, 80), expand = FALSE) +
-  guides(fill = FALSE,
-       color = guide_colorbar(title.position = "top",
+  guides(fill = guide_colorbar(title.position = "top", 
+                              direction = "horizontal",
                               frame.colour = "black",
-                              barwidth = .30,
-                              barheight = 4,
-                              label.position = 'left')) +
+                              barwidth = 39,
+                              barheight = .75,
+                              label.position = 'bottom')) +
   facet_wrap(~flag) +
   NULL
 
@@ -162,41 +163,34 @@ ggsave("figures/1-Map-Fishing-Effort-USA-CHN-ESP-JPN.png", width = 8, height = 5
 # ---------------------------------------------------------------------
 # Fishing Effort and Shannon Diversity
 fdat <- as.data.frame(read_csv("data/total_fishing_effort_nation.csv"))
-
 fdat$lon <- ifelse(fdat$lon < 0, fdat$lon + 360, fdat$lon)
 fdat$lon <- round(fdat$lon, 1)
 fdat$lat <- round(fdat$lat, 1)
 fdat$lat_lon <- paste0(fdat$lat, "_", fdat$lon)
-
 fdat <- fdat %>% group_by(lat_lon) %>% summarise(lat = mean(lat), lon = mean(lon), fishing_hours = sum(fishing_hours))
 
 
-
 sdat <- as.data.frame(read_csv("data/shannon_div_equ.csv"))
-
 sdat$lon <- ifelse(sdat$lon < 0, sdat$lon + 360, sdat$lon)
 sdat$lon <- round(sdat$lon, 1)
 sdat$lat <- round(sdat$lat, 1)
 sdat$lat_lon <- paste0(sdat$lat, "_", sdat$lon)
-
 sdat <- sdat %>% group_by(lat_lon) %>% summarise(lat = mean(lat), lon = mean(lon), H = mean(H, na.rm=TRUE))
 
 
 p1 <- ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.1, inherit.aes = FALSE) +
-  geom_point(data = fdat, aes(lon, lat, color=log(1 + fishing_hours)), size = 0.33, inherit.aes = FALSE, alpha = 0.35, shape=15) +
+  geom_tile(data = fdat, aes(lon, lat, fill=log(1 + fishing_hours)), alpha = 0.65, inherit.aes = FALSE) + 
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
   geom_polygon()  +
-  # scale_colour_gradientn(colours = rev(rainbow(5))) +
-  scale_color_gradientn(colors = nipy_spectral[c(1:6, 8, 9, 9, 9, 9, 9)]) +
+  scale_fill_gradientn(colors = nipy_spectral[c(1:8, 9, 9)], limits = c(0, 10), breaks = seq(0, 10, 2)) +
   theme_bw() +
   labs(x=NULL, y=NULL, 
-       title="Total Fishing Effort (log cumulative hours 2012-2016)", color=NULL) +
+       title="Total Fishing Effort (log cumulative hours 2012-2016)", fill=NULL) +
   theme(plot.title = element_text(hjust = 0.5),
         legend.position = "right") +
   coord_sf(xlim = c(0, 360), ylim = c(-80, 80), expand = FALSE) +
-  guides(fill = FALSE,
-       color = guide_colorbar(title.position = "top",
+  guides(fill = guide_colorbar(title.position = "top",
                               frame.colour = "black",
                               barwidth = .30,
                               barheight = 6,
@@ -206,18 +200,19 @@ p1 <- ggplot(data = mp, aes(x = long, y = lat, group = group)) +
 
 p2 <- ggplot(data = mp, aes(x = long, y = lat, group = group)) + 
   geom_sf(data = mpas, color = 'grey', alpha = 0.5, fill = 'grey', size = 0.22, inherit.aes = FALSE) +
-  geom_point(data = sdat, aes(lon, lat, color=H), size = 0.233, inherit.aes = FALSE, shape=15, alpha=0.35) +
+  # geom_point(data = sdat, aes(lon, lat, color=H), size = 0.233, inherit.aes = FALSE, shape=15, alpha=0.35) +
+  geom_tile(data = sdat, aes(lon, lat, fill=H), alpha = 0.65, inherit.aes = FALSE) + 
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
   geom_polygon()  +
-  scale_color_gradientn(colors = nipy_spectral[c(3:6, 7, 8, 9, 9, 9)]) +
+  scale_fill_gradientn(colors = nipy_spectral[c(3:6, 7, 8, 9, 9, 9)]) +
+  # scale_fill_gradientn(colors = nipy_spectral) +
   theme_bw() +
   labs(x=NULL, y=NULL, 
        title="Shannon Diversity (2012-2014)", color=NULL) +
   theme(plot.title = element_text(hjust = 0.5),
         legend.position = 'right') +
   coord_sf(xlim = c(0, 360), ylim = c(-80, 80), expand = FALSE) +
-  guides(fill = FALSE,
-       color = guide_colorbar(title.position = "top",
+  guides(fill = guide_colorbar(title.position = "top",
                               frame.colour = "black",
                               barwidth = .30,
                               barheight = 6,
@@ -377,8 +372,7 @@ color_scheme <- c("#000000","#18001b","#300037","#480052","#60006e","#770088","#
   "#00e100","#00e800","#00ef00","#00f500","#00fc00","#17ff00","#3cff00","#62ff00","#88ff00","#aeff00","#c2fd00",
   "#ccf900","#d6f600","#e1f200","#ebef00","#f0e900","#f4e200","#f7db00","#fbd500","#fece00","#ffc400","#ffba00",
   "#ffb000","#ffa500","#ff9b00","#ff8000","#ff6100","#ff4200","#ff2400","#ff0500","#f90000","#f20000","#eb0000",
-  "#e50000","#de0000","#da0000","#d60000","#d30000","#d00000","#cc0000","#cc2727","#cc5050","#cc7a7a","#cca3a3",
-  "#cccccc")
+  "#e50000","#de0000","#da0000","#d60000","#d30000","#d00000","#cc0000","#cc2727","#cc5050","#cc7a7a","#cca3a3")
 
 
 mean_sst <- ggplot(data = mp, aes(x = long, y = lat, group = group)) + 

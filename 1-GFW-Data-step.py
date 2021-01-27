@@ -246,14 +246,3 @@ np.save('data/flag_interactions_matrix.npy', mat_retdat)
 
 
 
-
-from pylab import *
-
-cmap = cm.get_cmap('nipy_spectral', 100)    # PiYG
-
-for i in range(cmap.N):
-    rgb = cmap(i)[:3] # will return rgba, we take only first 3 so we get rgb
-    print(matplotlib.colors.rgb2hex(rgb))
-    
-    
-    

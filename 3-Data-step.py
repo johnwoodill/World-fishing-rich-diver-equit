@@ -181,63 +181,67 @@ def rfmo_check(ndat):
 # ------------------------------------
 
 # ### Get ports and coastline data
-ports = get_ports()
-coasts = get_coastlines()
+# ports = get_ports()
+# coasts = get_coastlines()
 
-eez_shp = gpd.read_file("data/EEZ/eez_v10.shp")
-unique_eez = eez_shp.Territory1.unique()
+# eez_shp = gpd.read_file("data/EEZ/eez_v10.shp")
+# unique_eez = eez_shp.Territory1.unique()
 
-mpa_shp = gpd.read_file("data/mpa_shapefiles/vlmpa.shp")
-unique_mpa = mpa_shp.NAME.unique()
+# mpa_shp = gpd.read_file("data/mpa_shapefiles/vlmpa.shp")
+# unique_mpa = mpa_shp.NAME.unique()
 
-rfmo_shp = gpd.read_file("data/RFMO_shapefile/RFMO_coords.shp")
-unique_rfmo = rfmo_shp.RFMO.unique()
+# rfmo_shp = gpd.read_file("data/RFMO_shapefile/RFMO_coords.shp")
+# unique_rfmo = rfmo_shp.RFMO.unique()
 
-# ### Get CMIP Coords with Dask
-cmip_data = pd.read_hdf('data/full_CMIP6_historical.hdf', key='historical')
-cmip_coords = cmip_data.groupby('lat_lon').agg({'lat': 'mean', 'lon': 'mean'}).sort_values(['lon', 'lat']).reset_index()
+# # ### Get CMIP Coords with Dask
+# cmip_data = pd.read_hdf('data/full_CMIP6_historical.hdf', key='historical')
+# cmip_coords = cmip_data.groupby('lat_lon').agg({'lat': 'mean', 'lon': 'mean'}).sort_values(['lon', 'lat']).reset_index()
 
-# cmip_coords = cmip_coords.head()
-cmip_coords = dd.from_pandas(cmip_coords, npartitions = 50)
-# cmip_coords = cmip_coords.sample(10).reset_index(drop=True)
-
-
-# ### Distance to closests port
-port_dat = cmip_coords.groupby('lat_lon').apply(lambda x: port_dist(x)).compute(scheduler='processes')
-port_dat = port_dat.reset_index().drop(columns='level_1')
-port_dat.to_csv('data/port_dat.csv', index = False)
+# # cmip_coords = cmip_coords.head()
+# cmip_coords = dd.from_pandas(cmip_coords, npartitions = 50)
+# # cmip_coords = cmip_coords.sample(10).reset_index(drop=True)
 
 
-
-
-# ### Distance to coast
-coast_dist_dat = cmip_coords.groupby('lat_lon').apply(lambda x: coast_dist(x)).compute(scheduler='processes')
-coast_dist_dat = coast_dist_dat.reset_index().drop(columns='level_1')
-coast_dist_dat.to_csv('data/coast_dist_dat.csv', index = False)
-
-
-
-# ### EEZ Check
-eez_check_dat = cmip_coords.groupby('lat_lon').apply(lambda x: eez_check(x)).compute(scheduler='processes')
-eez_check_dat = eez_check_dat.reset_index().drop(columns='level_1')
-eez_check_dat.to_csv('data/eez_check_dat.csv', index = False)
+# # ### Distance to closests port
+# port_dat = cmip_coords.groupby('lat_lon').apply(lambda x: port_dist(x)).compute(scheduler='processes')
+# port_dat = port_dat.reset_index().drop(columns='level_1')
+# port_dat.to_csv('data/port_dat.csv', index = False)
 
 
 
 
-# ### MPA Check
-mpa_check_dat = cmip_coords.groupby('lat_lon').apply(lambda x: mpa_check(x)).compute(scheduler='processes')
-mpa_check_dat = mpa_check_dat.reset_index().drop(columns='level_1')
-mpa_check_dat.to_csv('data/mpa_check_dat.csv', index = False)
+# # ### Distance to coast
+# coast_dist_dat = cmip_coords.groupby('lat_lon').apply(lambda x: coast_dist(x)).compute(scheduler='processes')
+# coast_dist_dat = coast_dist_dat.reset_index().drop(columns='level_1')
+# coast_dist_dat.to_csv('data/coast_dist_dat.csv', index = False)
 
 
-# ### RFMO Check
-rfmo_check_dat = cmip_coords.groupby('lat_lon').apply(lambda x: rfmo_check(x)).compute(scheduler='processes')
-rfmo_check_dat = rfmo_check_dat.reset_index().drop(columns='level_1')
-rfmo_check_dat.to_csv('data/rfmo_check_dat.csv', index = False)
+
+# # ### EEZ Check
+# eez_check_dat = cmip_coords.groupby('lat_lon').apply(lambda x: eez_check(x)).compute(scheduler='processes')
+# eez_check_dat = eez_check_dat.reset_index().drop(columns='level_1')
+# eez_check_dat.to_csv('data/eez_check_dat.csv', index = False)
+
+
+
+
+# # ### MPA Check
+# mpa_check_dat = cmip_coords.groupby('lat_lon').apply(lambda x: mpa_check(x)).compute(scheduler='processes')
+# mpa_check_dat = mpa_check_dat.reset_index().drop(columns='level_1')
+# mpa_check_dat.to_csv('data/mpa_check_dat.csv', index = False)
+
+
+# # ### RFMO Check
+# rfmo_check_dat = cmip_coords.groupby('lat_lon').apply(lambda x: rfmo_check(x)).compute(scheduler='processes')
+# rfmo_check_dat = rfmo_check_dat.reset_index().drop(columns='level_1')
+# rfmo_check_dat.to_csv('data/rfmo_check_dat.csv', index = False)
 
 
 # -----------------------------------------------------------------
+print("Binding compiled data")
+
+# Grid all 1d data in the world
+
 
 # ### Calc whether country has ever fished at grid
 feffort_nat_dat = pd.read_csv('data/total_fishing_effort_nation.csv')
@@ -289,15 +293,24 @@ full_dat = full_dat.assign(lon = np.where(full_dat['lon'] < 0, full_dat['lon'] +
 full_dat = full_dat.assign(lat_lon = full_dat['lat'].astype(str) + "_" + full_dat['lon'].astype(str))
 
 
-
+print("Binding CMIP6 data")
 # Bind CMIP6 data (add 361 to shift data)
 hist_dat = pd.read_hdf('data/full_CMIP6_historical.hdf', key='historical')
+
 ssp126_2015_2030_dat = pd.read_hdf('data/full_CMIP6_ssp126_2015_2030.hdf', key='ssp126_2015_2030')
 ssp126_2030_2045_dat = pd.read_hdf('data/full_CMIP6_ssp126_2030_2045.hdf', key='ssp126_2030_2045')
 ssp126_2045_2060_dat = pd.read_hdf('data/full_CMIP6_ssp126_2045_2060.hdf', key='ssp126_2045_2060')
 ssp126_2060_2075_dat = pd.read_hdf('data/full_CMIP6_ssp126_2060_2075.hdf', key='ssp126_2060_2075')
 ssp126_2075_2090_dat = pd.read_hdf('data/full_CMIP6_ssp126_2075_2090.hdf', key='ssp126_2075_2090')
 
+ssp585_2015_2030_dat = pd.read_hdf('data/full_CMIP6_ssp585_2015_2030.hdf', key='ssp585_2015_2030')
+ssp585_2030_2045_dat = pd.read_hdf('data/full_CMIP6_ssp585_2030_2045.hdf', key='ssp585_2030_2045')
+ssp585_2045_2060_dat = pd.read_hdf('data/full_CMIP6_ssp585_2045_2060.hdf', key='ssp585_2045_2060')
+ssp585_2060_2075_dat = pd.read_hdf('data/full_CMIP6_ssp585_2060_2075.hdf', key='ssp585_2060_2075')
+ssp585_2075_2090_dat = pd.read_hdf('data/full_CMIP6_ssp585_2075_2090.hdf', key='ssp585_2075_2090')
+
+
+print("Pivot CMIP6 data for merge")
 # ### Pivot data and bind distance measures
 hist_dat = proc_pivot(hist_dat)
 hist_dat = hist_dat.merge(port_dat, how='left', on=['lat_lon'])
@@ -305,11 +318,21 @@ hist_dat = hist_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'
 hist_dat = hist_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 hist_dat = hist_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 
+
+print("Merge CMIP6 and GFW Data")
 ssp126_2015_2030_dat = proc_pivot(ssp126_2015_2030_dat)
 ssp126_2015_2030_dat = ssp126_2015_2030_dat.merge(port_dat, how='left', on=['lat_lon'])
 ssp126_2015_2030_dat = ssp126_2015_2030_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2015_2030_dat = ssp126_2015_2030_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2015_2030_dat = ssp126_2015_2030_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
+ssp585_2015_2030_dat = proc_pivot(ssp585_2015_2030_dat)
+ssp585_2015_2030_dat = ssp585_2015_2030_dat.merge(port_dat, how='left', on=['lat_lon'])
+ssp585_2015_2030_dat = ssp585_2015_2030_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp585_2015_2030_dat = ssp585_2015_2030_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp585_2015_2030_dat = ssp585_2015_2030_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
+
 
 ssp126_2030_2045_dat = proc_pivot(ssp126_2030_2045_dat)
 ssp126_2030_2045_dat = ssp126_2030_2045_dat.merge(port_dat, how='left', on=['lat_lon'])
@@ -317,11 +340,26 @@ ssp126_2030_2045_dat = ssp126_2030_2045_dat.merge(eez_check_dat, how='left', on=
 ssp126_2030_2045_dat = ssp126_2030_2045_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2030_2045_dat = ssp126_2030_2045_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 
+ssp585_2030_2045_dat = proc_pivot(ssp585_2030_2045_dat)
+ssp585_2030_2045_dat = ssp585_2030_2045_dat.merge(port_dat, how='left', on=['lat_lon'])
+ssp585_2030_2045_dat = ssp585_2030_2045_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp585_2030_2045_dat = ssp585_2030_2045_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp585_2030_2045_dat = ssp585_2030_2045_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
+
+
 ssp126_2045_2060_dat = proc_pivot(ssp126_2045_2060_dat)
 ssp126_2045_2060_dat = ssp126_2045_2060_dat.merge(port_dat, how='left', on=['lat_lon'])
 ssp126_2045_2060_dat = ssp126_2045_2060_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2045_2060_dat = ssp126_2045_2060_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2045_2060_dat = ssp126_2045_2060_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
+ssp585_2045_2060_dat = proc_pivot(ssp585_2045_2060_dat)
+ssp585_2045_2060_dat = ssp585_2045_2060_dat.merge(port_dat, how='left', on=['lat_lon'])
+ssp585_2045_2060_dat = ssp585_2045_2060_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp585_2045_2060_dat = ssp585_2045_2060_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp585_2045_2060_dat = ssp585_2045_2060_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
 
 ssp126_2060_2075_dat = proc_pivot(ssp126_2060_2075_dat)
 ssp126_2060_2075_dat = ssp126_2060_2075_dat.merge(port_dat, how='left', on=['lat_lon'])
@@ -329,18 +367,30 @@ ssp126_2060_2075_dat = ssp126_2060_2075_dat.merge(eez_check_dat, how='left', on=
 ssp126_2060_2075_dat = ssp126_2060_2075_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2060_2075_dat = ssp126_2060_2075_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 
+ssp585_2060_2075_dat = proc_pivot(ssp585_2060_2075_dat)
+ssp585_2060_2075_dat = ssp585_2060_2075_dat.merge(port_dat, how='left', on=['lat_lon'])
+ssp585_2060_2075_dat = ssp585_2060_2075_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp585_2060_2075_dat = ssp585_2060_2075_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp585_2060_2075_dat = ssp585_2060_2075_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
+
+
 ssp126_2075_2090_dat = proc_pivot(ssp126_2075_2090_dat)
 ssp126_2075_2090_dat = ssp126_2075_2090_dat.merge(port_dat, how='left', on=['lat_lon'])
 ssp126_2075_2090_dat = ssp126_2075_2090_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2075_2090_dat = ssp126_2075_2090_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 ssp126_2075_2090_dat = ssp126_2075_2090_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 
+ssp585_2075_2090_dat = proc_pivot(ssp585_2075_2090_dat)
+ssp585_2075_2090_dat = ssp585_2075_2090_dat.merge(port_dat, how='left', on=['lat_lon'])
+ssp585_2075_2090_dat = ssp585_2075_2090_dat.merge(eez_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp585_2075_2090_dat = ssp585_2075_2090_dat.merge(mpa_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+ssp585_2075_2090_dat = ssp585_2075_2090_dat.merge(rfmo_check_dat, how='left', on=['lat_lon', 'lat', 'lon'])
 
 
 
 
-
-
+print("Saving Historical Data")
 # ------------------------------------------------------------------------
 ##### Historical Data
 full_dat_hist_dat = hist_dat.merge(full_dat, how='left', on=['lat_lon', 'lat', 'lon'])
@@ -361,7 +411,7 @@ full_dat_hist_dat.to_csv("data/full_gfw_cmip_dat.csv", index=False)
 
 
 
-
+print("Saving SSP 126 2015-2030 Data")
 # ------------------------------------------------------------------------
 #### ssp126_2015_2030_dat
 full_dat_ssp126_2015_2030_dat = ssp126_2015_2030_dat.merge(full_dat, how='left', on=['lat_lon', 'lat', 'lon'])
@@ -382,12 +432,31 @@ full_dat_ssp126_2015_2030_dat.to_csv("data/full_dat_ssp126_2015_2030_dat.csv", i
 
 
 
+print("Saving SSP 585 2015-2030 Data")
+# ------------------------------------------------------------------------
+#### ssp585_2015_2030_dat
+full_dat_ssp585_2015_2030_dat = ssp585_2015_2030_dat.merge(full_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
+# ### Remove inf and na
+full_dat_ssp585_2015_2030_dat = full_dat_ssp585_2015_2030_dat.replace([np.inf, -np.inf], np.nan)
+
+present_cols = full_dat_ssp585_2015_2030_dat.filter(like='present').columns
+full_dat_ssp585_2015_2030_dat[present_cols] = full_dat_ssp585_2015_2030_dat[present_cols].apply(lambda x: x.fillna(0))
+
+gear_cols = full_dat_ssp585_2015_2030_dat.filter(like='gear').columns
+full_dat_ssp585_2015_2030_dat[gear_cols] = full_dat_ssp585_2015_2030_dat[gear_cols].apply(lambda x: x.fillna(0))
+
+# ### NA values are located on land so remove
+full_dat_ssp585_2015_2030_dat.to_csv("data/full_dat_ssp585_2015_2030_dat.csv", index=False)
+
+# ------------------------------------------------------------------------
 
 
 
 
 
 
+print("Saving SSP 126 2030-2045 Data")
 # ------------------------------------------------------------------------
 #### ssp126_2030_2045_dat
 # ### Merge on data
@@ -405,12 +474,27 @@ full_dat_ssp126_2030_2045_dat[gear_cols] = full_dat_ssp126_2030_2045_dat[gear_co
 full_dat_ssp126_2030_2045_dat.to_csv("data/full_dat_ssp126_2030_2045_dat.csv", index=False)
 # ------------------------------------------------------------------------
 
+print("Saving SSP 585 2030-2045 Data")
+# ------------------------------------------------------------------------
+#### ssp585_2030_2045_dat
+# ### Merge on data
+full_dat_ssp585_2030_2045_dat = ssp585_2030_2045_dat.merge(full_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
+# ### Remove inf and na
+full_dat_ssp585_2030_2045_dat = full_dat_ssp585_2030_2045_dat.replace([np.inf, -np.inf], np.nan)
+
+present_cols = full_dat_ssp585_2030_2045_dat.filter(like='present').columns
+full_dat_ssp585_2030_2045_dat[present_cols] = full_dat_ssp585_2030_2045_dat[present_cols].apply(lambda x: x.fillna(0))
+
+gear_cols = full_dat_ssp585_2030_2045_dat.filter(like='gear').columns
+full_dat_ssp585_2030_2045_dat[gear_cols] = full_dat_ssp585_2030_2045_dat[gear_cols].apply(lambda x: x.fillna(0))
+
+full_dat_ssp585_2030_2045_dat.to_csv("data/full_dat_ssp585_2030_2045_dat.csv", index=False)
+# ------------------------------------------------------------------------
 
 
 
-
-
-
+print("Saving SSP 126 2045-2060 Data")
 # ------------------------------------------------------------------------
 #### ssp126_2045_2060_dat
 # ### Merge on data
@@ -428,14 +512,29 @@ full_dat_ssp126_2045_2060_dat[gear_cols] = full_dat_ssp126_2045_2060_dat[gear_co
 full_dat_ssp126_2045_2060_dat.to_csv("data/full_dat_ssp126_2045_2060_dat.csv", index=False)
 # ------------------------------------------------------------------------
 
+print("Saving SSP 585 2045-2060 Data")
+# ------------------------------------------------------------------------
+#### ssp585_2045_2060_dat
+# ### Merge on data
+full_dat_ssp585_2045_2060_dat = ssp585_2045_2060_dat.merge(full_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
+# ### Remove inf and na
+full_dat_ssp585_2045_2060_dat = full_dat_ssp585_2045_2060_dat.replace([np.inf, -np.inf], np.nan)
+
+present_cols = full_dat_ssp585_2045_2060_dat.filter(like='present').columns
+full_dat_ssp585_2045_2060_dat[present_cols] = full_dat_ssp585_2045_2060_dat[present_cols].apply(lambda x: x.fillna(0))
+
+gear_cols = full_dat_ssp585_2045_2060_dat.filter(like='gear').columns
+full_dat_ssp585_2045_2060_dat[gear_cols] = full_dat_ssp585_2045_2060_dat[gear_cols].apply(lambda x: x.fillna(0))
+
+full_dat_ssp585_2045_2060_dat.to_csv("data/full_dat_ssp585_2045_2060_dat.csv", index=False)
+# ------------------------------------------------------------------------
 
 
 
 
 
-
-
-
+print("Saving SSP 126 2060-2075 Data")
 # ------------------------------------------------------------------------
 #### ssp126_2060_2075_dat
 # ### Merge on data
@@ -454,10 +553,28 @@ full_dat_ssp126_2060_2075_dat.to_csv("data/full_dat_ssp126_2060_2075_dat.csv", i
 # ------------------------------------------------------------------------
 
 
+print("Saving SSP 585 2060-2075 Data")
+# ------------------------------------------------------------------------
+#### ssp585_2060_2075_dat
+# ### Merge on data
+full_dat_ssp585_2060_2075_dat = ssp585_2060_2075_dat.merge(full_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
+# ### Remove inf and na
+full_dat_ssp585_2060_2075_dat = full_dat_ssp585_2060_2075_dat.replace([np.inf, -np.inf], np.nan)
+
+present_cols = full_dat_ssp585_2060_2075_dat.filter(like='present').columns
+full_dat_ssp585_2060_2075_dat[present_cols] = full_dat_ssp585_2060_2075_dat[present_cols].apply(lambda x: x.fillna(0))
+
+gear_cols = full_dat_ssp585_2060_2075_dat.filter(like='gear').columns
+full_dat_ssp585_2060_2075_dat[gear_cols] = full_dat_ssp585_2060_2075_dat[gear_cols].apply(lambda x: x.fillna(0))
+
+full_dat_ssp585_2060_2075_dat.to_csv("data/full_dat_ssp585_2060_2075_dat.csv", index=False)
+# ------------------------------------------------------------------------
 
 
 
 
+print("Saving SSP 126 2075-2090 Data")
 # ------------------------------------------------------------------------
 #### ssp126_2075_2090_dat
 # ### Merge on data
@@ -473,4 +590,23 @@ gear_cols = full_dat_ssp126_2075_2090_dat.filter(like='gear').columns
 full_dat_ssp126_2075_2090_dat[gear_cols] = full_dat_ssp126_2075_2090_dat[gear_cols].apply(lambda x: x.fillna(0))
 
 full_dat_ssp126_2075_2090_dat.to_csv("data/full_dat_ssp126_2075_2090_dat.csv", index=False)
+# ------------------------------------------------------------------------
+
+
+print("Saving SSP 585 2075-2090 Data")
+# ------------------------------------------------------------------------
+#### ssp585_2075_2090_dat
+# ### Merge on data
+full_dat_ssp585_2075_2090_dat = ssp585_2075_2090_dat.merge(full_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
+# ### Remove inf and na
+full_dat_ssp585_2075_2090_dat = full_dat_ssp585_2075_2090_dat.replace([np.inf, -np.inf], np.nan)
+
+present_cols = full_dat_ssp585_2075_2090_dat.filter(like='present').columns
+full_dat_ssp585_2075_2090_dat[present_cols] = full_dat_ssp585_2075_2090_dat[present_cols].apply(lambda x: x.fillna(0))
+
+gear_cols = full_dat_ssp585_2075_2090_dat.filter(like='gear').columns
+full_dat_ssp585_2075_2090_dat[gear_cols] = full_dat_ssp585_2075_2090_dat[gear_cols].apply(lambda x: x.fillna(0))
+
+full_dat_ssp585_2075_2090_dat.to_csv("data/full_dat_ssp585_2075_2090_dat.csv", index=False)
 # ------------------------------------------------------------------------
