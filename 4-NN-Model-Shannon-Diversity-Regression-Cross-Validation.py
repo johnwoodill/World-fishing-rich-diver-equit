@@ -80,7 +80,7 @@ def check_grid(lat, lon, grid_data):
 
 
 def procEffortReg(dat):
-    dat = dat.drop(columns=['richness', 'E', 'H'])
+    dat = dat.drop(columns=['richness', 'E'])
     
     dat = dat.assign(lat_x_lon = dat['lat'] * dat['lon'],
                      mmsi = dat['mmsi'].fillna(0),
@@ -99,11 +99,11 @@ def procEffortReg(dat):
     
     X = X.dropna().reset_index(drop=True)
     
-    y = X['fishing_hours'] / X['mmsi']
+    y = X['H']
     y = y.fillna(0)
     y = np.log(1 + y)
 
-    X = X.drop(columns=['fishing_hours', 'mmsi'])
+    X = X.drop(columns=['H', 'mmsi'])
 
     # ### Predictors that reduce model accuracy
     # X = X[X.columns.drop(list(X.filter(regex='gear')))]
@@ -165,15 +165,17 @@ for train_index, test_index in kf.split(X):
 
     ksmod = Sequential()
     # ksmod.add(Dense(100, activation='relu'))
-    ksmod.add(Dropout(0.10, input_shape=(len(X.columns),)))
+    ksmod.add(Dropout(0.50, input_shape=(len(X.columns),)))
+    ksmod.add(Dense(70, activation='relu'))
     ksmod.add(Dense(60, activation='relu'))
     ksmod.add(Dense(30, activation='relu'))
     ksmod.add(Dense(10, activation='relu'))
     ksmod.add(Dense(5, activation='relu'))
+    ksmod.add(Dropout(0.50, input_shape=(len(X.columns),)))
     ksmod.add(Dense(1, activation='relu'))
     ksmod.compile(optimizer='adam', loss='mean_squared_error')
     ksmod.fit(X_train, y_train.values, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
-    
+
     ### Predict train/test set
     y_pred_train = ksmod.predict(X_train)    
     y_pred_test = ksmod.predict(X_test)   
@@ -232,6 +234,7 @@ full_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
 
 X, y = procEffortReg(full_dat)
 
+# y = np.log(1 + y)
 
 X = X.merge(cv_dat, on=['lat', 'lon'])
 
@@ -254,13 +257,13 @@ for cv in range(0, 2000):
 
     ksmod = Sequential()
     # ksmod.add(Dense(100, activation='relu'))
-    ksmod.add(Dropout(0.55, input_shape=(len(X.columns) - 3,)))
+    ksmod.add(Dropout(0.10, input_shape=(len(X.columns) - 3,)))
     ksmod.add(Dense(70, activation='relu'))
     ksmod.add(Dense(60, activation='relu'))
     ksmod.add(Dense(30, activation='relu'))
     ksmod.add(Dense(10, activation='relu'))
     ksmod.add(Dense(5, activation='relu'))
-    ksmod.add(Dropout(0.55, input_shape=(len(X.columns) - 3,)))
+    ksmod.add(Dropout(0.10, input_shape=(len(X.columns) - 3,)))
     ksmod.add(Dense(1, activation='relu'))
     ksmod.compile(optimizer='adam', loss='mean_squared_error')
     ksmod.fit(X_train, y_train.values, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
@@ -305,7 +308,7 @@ for cv in range(0, 2000):
 print('saving')
     
     
-outdat.to_csv('data/NN_5D_block_cv_dropout55_results.csv', index=False)
+outdat.to_csv('data/NN_ShanDiv_5D_block_cv_dropout05_results.csv', index=False)
 
 
 

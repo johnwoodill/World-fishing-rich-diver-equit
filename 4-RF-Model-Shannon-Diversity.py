@@ -74,7 +74,7 @@ def procShannon(dat):
     X = X.drop(columns='H')
 
     # ### Predictors that reduce model accuracy
-    X = X[X.columns.drop(list(X.filter(regex='gear')))]
+    # X = X[X.columns.drop(list(X.filter(regex='gear')))]
     X = X[X.columns.drop(list(X.filter(regex='present')))]
     # X = X[X.columns.drop(list(X.filter(regex='skew')))]
     # X = X[X.columns.drop(list(X.filter(regex='kurt')))]
