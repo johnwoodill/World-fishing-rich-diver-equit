@@ -19,7 +19,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 def procEffortReg(dat):
-    dat = dat.drop(columns=['richness', 'E', 'H', 'lat_lon'])
+    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'H'])
     
     dat = dat.assign(lat_x_lon = dat['lat'] * dat['lon'],
                      mmsi = dat['mmsi'].fillna(0),
@@ -45,7 +45,7 @@ def procEffortReg(dat):
     X = X.drop(columns=['fishing_hours', 'mmsi'])
 
     # ### Predictors that reduce model accuracy
-    X = X[X.columns.drop(list(X.filter(regex='gear')))]
+    # X = X[X.columns.drop(list(X.filter(regex='gear')))]
     X = X[X.columns.drop(list(X.filter(regex='present')))]
     # X = X[X.columns.drop(list(X.filter(regex='skew')))]
     # X = X[X.columns.drop(list(X.filter(regex='kurt')))]
@@ -83,28 +83,35 @@ my_lr_scheduler = callbacks.LearningRateScheduler(adapt_learning_rate)
 # NN Model
 full_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
 
-X_train, y_train = procEffortReg(full_dat)
+X, y = procEffortReg(full_dat)
 
-len(X_train.lat.unique())
-X_train['y']
+X_lon = X['lon']
+X_lat = X['lat']
 
-X_train_lon = X_train['lon']
-X_train_lat = X_train['lat']
-
-scaler = preprocessing.StandardScaler().fit(X_train)
-X_train = scaler.transform(X_train)
+scaler = preprocessing.StandardScaler().fit(X)
+X_scaled = scaler.transform(X)
 
 ksmod = Sequential()
-ksmod.add(Dropout(0.25, input_shape=(len(X_train.columns),)))
+ksmod.add(Dropout(0.50, input_shape=(len(X.columns),)))
+ksmod.add(Dense(70, activation='relu'))
 ksmod.add(Dense(60, activation='relu'))
 ksmod.add(Dense(30, activation='relu'))
 ksmod.add(Dense(10, activation='relu'))
 ksmod.add(Dense(5, activation='relu'))
+ksmod.add(Dropout(0.50, input_shape=(len(X.columns),)))
 ksmod.add(Dense(1, activation='relu'))
 ksmod.compile(optimizer='adam', loss='mean_squared_error')
-ksmod.fit(X_train, y_train.values, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
+ksmod.fit(X_scaled, y.values, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
 
 
+### Predict train/test set
+y_pred_train = ksmod.predict(X_scaled)    
+    
+### Get regression metrics
+r2 = r2_score(y, y_pred_train)
+rmse = mean_squared_error(y, y_pred_train)
+
+print(f"R-squared: {round(r2, 3)*100}% // RMSE: {round(rmse, 3)}")
 
 
 
@@ -113,7 +120,7 @@ print("Processing 2000-2014")
 # ------------------
 # 2000-2014
 
-y_hist_pred_2015 = ksmod.predict(X_train)
+y_hist_pred_2015 = ksmod.predict(X_scaled)
 
 
 
@@ -237,21 +244,9 @@ ssp585_pred_2075 = pd.DataFrame({'lat': X_ssp585_2075['lat'], 'lon': X_ssp585_20
 
 
 
-
-
-
-sum(full_dat_ssp126_2000_2014_dat['mean_tos'])
-sum(full_dat_ssp126_2015_2030_dat['mean_tos'])
-sum(full_dat_ssp126_2030_2045_dat['mean_tos'])
-sum(full_dat_ssp126_2045_2060_dat['mean_tos'])
-sum(full_dat_ssp126_2060_2075_dat['mean_tos'])
-sum(full_dat_ssp126_2075_2090_dat['mean_tos'])
-
-
-
-savedat = pd.DataFrame({'lat': X_train_lat, 
-                        'lon': X_train_lon,
-                        'y_true_historical': y_train, 
+savedat = pd.DataFrame({'lat': X_lat, 
+                        'lon': X_lon,
+                        'y_true_historical': y, 
                         'y_pred_historical': y_hist_pred_2015.ravel()})
 
 savedat = savedat.merge(ssp126_pred_2015, on=['lat', 'lon'])
@@ -269,4 +264,13 @@ savedat = savedat.merge(ssp585_pred_2060, on=['lat', 'lon'])
 savedat = savedat.merge(ssp126_pred_2075, on=['lat', 'lon'])
 savedat = savedat.merge(ssp585_pred_2075, on=['lat', 'lon'])
 
+
+
+# Pandas dataframe
+print("Saving: 'data/NN_fishing_effort_regression_model_results.csv'")
 savedat.to_csv('data/NN_fishing_effort_regression_model_results.csv', index=False)
+# savedat = pd.read_csv('data/NN_fishing_effort_regression_model_results.csv')
+
+print("Saving: 'data/NN_fishing_effort_regression_model_results.nc'")
+savedat.melt(id_vars=['lat', 'lon']).set_index(['lat', 'lon', 'variable']).to_xarray().to_netcdf('data/NN_fishing_effort_regression_model_results.nc')
+

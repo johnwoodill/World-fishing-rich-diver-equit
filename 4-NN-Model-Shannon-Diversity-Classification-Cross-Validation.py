@@ -83,7 +83,7 @@ def check_grid(lat, lon, grid_data):
 
 
 def procShannon(dat):
-    dat = dat.drop(columns=['richness', 'E', 'eez', 'mpa', 'rfmo', 'mmsi'])
+    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'eez', 'mpa', 'rfmo', 'mmsi'])
     
     dat = dat.assign(lat_x_lon = dat['lat'] * dat['lon'],
                      H = dat['H'].fillna(0),
@@ -172,99 +172,6 @@ my_lr_scheduler = callbacks.LearningRateScheduler(adapt_learning_rate)
 
 
 
-
-
-# --------------------------------------------------------------------
-# NN Model
-# 5-Fold Cross-validation
-
-full_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
-
-X, y = procShannon(full_dat)
-
-kf = KFold(n_splits=5, shuffle=True)
-kf.get_n_splits(X)
-
-outdat = pd.DataFrame()
-cv = 0
-for train_index, test_index in kf.split(X):
-    cv = cv + 1
-
-    ### Get train/test splits
-    X_train, X_test = X[X.index.isin(train_index)], X[X.index.isin(test_index)]
-    y_train, y_test = y[y.index.isin(train_index)], y[y.index.isin(test_index)]
-        
-    X_train = preprocessing.scale(X_train)
-    X_test = preprocessing.scale(X_test)
-    
-    # encode class values as integers
-    encoder = LabelEncoder()
-    encoder.fit(y_train)
-    encoded_Y = encoder.transform(y_train)
-    # convert integers to dummy variables (i.e. one hot encoded)
-    dummy_y = np_utils.to_categorical(encoded_Y)
-
-    ksmod = Sequential()
-    # ksmod.add(Dense(100, activation='relu'))
-    ksmod.add(Dropout(0.50, input_shape=(len(X.columns),)))
-    ksmod.add(Dense(70, activation='relu'))
-    ksmod.add(Dense(60, activation='relu'))
-    ksmod.add(Dense(30, activation='relu'))
-    ksmod.add(Dense(10, activation='relu'))
-    ksmod.add(Dense(5, activation='relu'))
-    ksmod.add(Dropout(0.50, input_shape=(len(X.columns),)))
-    ksmod.add(Dense(4, activation='softmax'))
-    ksmod.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    ksmod.fit(X_train, dummy_y, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
-
-    ### Predict train/test set
-    y_pred_train = ksmod.predict(X_train)    
-    y_pred_test = ksmod.predict(X_test)   
-        
-    y_pred_train = [np.argmax(x) for x in y_pred_train]
-    y_pred_test = [np.argmax(x) for x in y_pred_test]
-    
-    ### Get regression metrics
-    roc_ = roc_auc_score_multiclass(y_test, y_pred_test)
-    roc_0 = roc_[0]
-    roc_1 = roc_[1]
-    roc_2 = roc_[2]
-    roc_3 = roc_[3]
-    roc_mean = np.mean([roc_0, roc_1, roc_2, roc_3])
-    
-    ### Get accuracy score
-    acc_test_score = accuracy_score(y_test, y_pred_test)
-    acc_train_score = accuracy_score(y_train, y_pred_train)
-    
-    ### Bind data
-    indat = pd.DataFrame({'cv': cv, 
-                          'y_true': y_test, 'y_pred': y_pred_test, 'test_score': acc_test_score,
-                          'train_score': acc_train_score, 'roc_0': roc_0, 'roc_1': roc_1, 'roc_2': roc_2, 
-                          'roc_3': roc_3, 'roc_avg': roc_mean})
-    outdat = pd.concat([outdat, indat])
-    print(f"[{cv}] Train Accuracy Score: {round(acc_train_score*100, 3)}%  ---- Test Accuracy Score: {round(acc_test_score*100, 3)}% ---- Macro Mean: {round(roc_mean*100, 3)}%")
-    
-
-
-
-
-
-outdat.groupby('cv').apply(lambda x: print(np.mean(x['rmse_test']), np.mean(x['rmse_train']), np.mean(x['rmse_test']) - np.mean(x['rmse_train'])))
-
-outdat.groupby('cv').apply(lambda x: print(np.mean(x['r2_train']), "---", np.mean(x['r2_test'])))
-
-
-
-
-
-
-
-
-
-
-
-
-
 # --------------------------------
 # Bootstrap 5-Degree Block Cross validation data
 
@@ -296,11 +203,16 @@ for dropout_ in [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
         train_index = X[X['grid'].isin(train_blocks)].index
         test_index = X[X['grid'].isin(test_blocks)].index
 
-        X_train, y_train = X[X.index.isin(train_index)].drop(columns={'grid', 'cv_grid', 'lat_lon'}), y[y.index.isin(train_index)]
-        X_test, y_test = X[X.index.isin(test_index)].drop(columns={'grid', 'cv_grid', 'lat_lon'}), y[y.index.isin(test_index)]
+        X_train, y_train = X[X.index.isin(train_index)].drop(columns={'grid', 'cv_grid'}), y[y.index.isin(train_index)]
+        X_test, y_test = X[X.index.isin(test_index)].drop(columns={'grid', 'cv_grid'}), y[y.index.isin(test_index)]
 
-        X_train = preprocessing.scale(X_train)
-        X_test = preprocessing.scale(X_test)
+        sc_X = StandardScaler().fit(X_train)
+        X_train = sc_X.fit_transform(X_train)
+        X_test = sc_X.transform(X_test)
+
+        # Old way remove
+        # X_train = preprocessing.scale(X_train)
+        # X_test = preprocessing.scale(X_test)
 
         # encode class values as integers
         encoder = LabelEncoder()
@@ -309,13 +221,13 @@ for dropout_ in [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
         dummy_y = np_utils.to_categorical(encoded_Y)
 
         ksmod = Sequential()
-        ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 3,)))
+        ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
         ksmod.add(Dense(70, activation='relu'))
         ksmod.add(Dense(60, activation='relu'))
         ksmod.add(Dense(30, activation='relu'))
         ksmod.add(Dense(10, activation='relu'))
         ksmod.add(Dense(5, activation='relu'))
-        ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 3,)))
+        ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
         ksmod.add(Dense(4, activation='softmax'))
         ksmod.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
         ksmod.fit(X_train, dummy_y, verbose=0, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
@@ -369,163 +281,262 @@ outdat.to_csv('data/NN_ShanDiv_5D_block_cv_alldropouts_results.csv', index=False
 
 
 
+# # --------------------------------------------------------------------
+# # NN Model
+# # 5-Fold Cross-validation
 
+# full_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
 
+# X, y = procShannon(full_dat)
 
+# kf = KFold(n_splits=5, shuffle=True)
+# kf.get_n_splits(X)
 
+# outdat = pd.DataFrame()
+# cv = 0
+# for train_index, test_index in kf.split(X):
+#     cv = cv + 1
 
-# 10-Degree Block Cross validation data
-
-cv_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
-cv_dat = cv_dat.iloc[:, 1:3]
-
-grid_data = build_cv_grids(10)
-
-grid_results = cv_dat.apply(lambda x: check_grid(x['lat'], x['lon'], grid_data), axis=1)
-
-cv_dat = cv_dat.assign(grid = [x[0] for x in grid_results], cv_grid = [x[1] for x in grid_results])
-
-# cv_dat = cv_dat[['lat_lon', 'lat', 'lon', 'grid', 'cv_grid']]
-
-
-cv_dat = cv_dat[['lat_lon', 'grid', 'cv_grid']]
-
-# full_dat = full_dat.merge(cv_dat, on='lat_lon')
-
-full_dat
-
-
-X = X.merge(cv_dat, on='lat_lon')
-X = X.iloc[:, 1:]
-
-test_index = X[X['cv_grid'] == 0].index
-train_index = X[X['cv_grid'] == 1].index
-
-test_index
-train_index
-
-X_train, y_train = X[X.index.isin(train_index)], y[y.index.isin(train_index)]
-X_test, y_test = X[X.index.isin(test_index)], y[y.index.isin(test_index)]
-
-
-
-X_train = preprocessing.scale(X_train)
-X_test = preprocessing.scale(X_test)
-
-ksmod = Sequential()
-# ksmod.add(Dense(100, activation='relu'))
-ksmod.add(Dropout(0.10, input_shape=(len(X.columns),)))
-ksmod.add(Dense(60, activation='relu'))
-ksmod.add(Dense(30, activation='relu'))
-ksmod.add(Dense(10, activation='relu'))
-ksmod.add(Dense(5, activation='relu'))
-ksmod.add(Dense(1, activation='relu'))
-ksmod.compile(optimizer='adam', loss='mean_squared_error')
-ksmod.fit(X_train, y_train.values, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
-# ksmod.fit(X_train, y_train.values, epochs=1000,  batch_size=100, validation_data=(X_test, y_test.values), callbacks=[es, my_lr_scheduler])
-
-### Predict train/test set
-y_pred_train = ksmod.predict(X_train)    
-y_pred_test = ksmod.predict(X_test)   
+#     ### Get train/test splits
+#     X_train, X_test = X[X.index.isin(train_index)], X[X.index.isin(test_index)]
+#     y_train, y_test = y[y.index.isin(train_index)], y[y.index.isin(test_index)]
+        
+#     X_train = preprocessing.scale(X_train)
+#     X_test = preprocessing.scale(X_test)
     
-### Get regression metrics
-train_r2 = r2_score(y_train, y_pred_train)
-test_r2 = r2_score(y_test, y_pred_test)
+#     # encode class values as integers
+#     encoder = LabelEncoder()
+#     encoder.fit(y_train)
+#     encoded_Y = encoder.transform(y_train)
+#     # convert integers to dummy variables (i.e. one hot encoded)
+#     dummy_y = np_utils.to_categorical(encoded_Y)
 
-train_rmse = mean_squared_error(y_train, y_pred_train)
-test_rmse = mean_squared_error(y_test, y_pred_test)
+#     ksmod = Sequential()
+#     # ksmod.add(Dense(100, activation='relu'))
+#     ksmod.add(Dropout(0.50, input_shape=(len(X.columns),)))
+#     ksmod.add(Dense(70, activation='relu'))
+#     ksmod.add(Dense(60, activation='relu'))
+#     ksmod.add(Dense(30, activation='relu'))
+#     ksmod.add(Dense(10, activation='relu'))
+#     ksmod.add(Dense(5, activation='relu'))
+#     ksmod.add(Dropout(0.50, input_shape=(len(X.columns),)))
+#     ksmod.add(Dense(4, activation='softmax'))
+#     ksmod.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+#     ksmod.fit(X_train, dummy_y, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
 
-### Bind data
-indat = pd.DataFrame({'cv': cv, 
-                    #   'lat': X_test['lat'], 'lon': X_test['lon'],
-                        'y_true': y_test, 'y_pred': y_pred_test.ravel(), 'r2_train': train_r2,
-                        'r2_test': test_r2, 'rmse_train': train_rmse, 'rmse_test': test_rmse})
-
-outdat = pd.concat([outdat, indat])
-print(f"[{cv}] Cross-validation complete - Accuracy Score:")
-print("----------------------------------------------------------")
-print(f"r2: {train_r2} (Train R2) ------- {test_r2} (Test R2)")
-print(f"RMSE: {train_rmse} (Train RMSE) ------- {test_rmse} (Test RMSE)")
-print("----------------------------------------------------------")
-
-
-
-
-
-
-
-
-
-# 20-Degree Block Cross validation data
-
-cv_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
-cv_dat = cv_dat.iloc[:, 1:3]
-
-grid_data = build_cv_grids(20)
-
-grid_results = cv_dat.apply(lambda x: check_grid(x['lat'], x['lon'], grid_data), axis=1)
-
-cv_dat = cv_dat.assign(grid = [x[0] for x in grid_results], cv_grid = [x[1] for x in grid_results])
-
-# cv_dat = cv_dat[['lat_lon', 'lat', 'lon', 'grid', 'cv_grid']]
-
-
-cv_dat = cv_dat[['lat_lon', 'grid', 'cv_grid']]
-
-# full_dat = full_dat.merge(cv_dat, on='lat_lon')
-
-full_dat
-
-
-X = X.merge(cv_dat, on='lat_lon')
-X = X.iloc[:, 1:]
-
-test_index = X[X['cv_grid'] == 0].index
-train_index = X[X['cv_grid'] == 1].index
-
-test_index
-train_index
-
-X_train, y_train = X[X.index.isin(train_index)], y[y.index.isin(train_index)]
-X_test, y_test = X[X.index.isin(test_index)], y[y.index.isin(test_index)]
-
-
-
-X_train = preprocessing.scale(X_train)
-X_test = preprocessing.scale(X_test)
-
-ksmod = Sequential()
-# ksmod.add(Dense(100, activation='relu'))
-ksmod.add(Dropout(0.10, input_shape=(len(X.columns),)))
-ksmod.add(Dense(60, activation='relu'))
-ksmod.add(Dense(30, activation='relu'))
-ksmod.add(Dense(10, activation='relu'))
-ksmod.add(Dense(5, activation='relu'))
-ksmod.add(Dense(1, activation='relu'))
-ksmod.compile(optimizer='adam', loss='mean_squared_error')
-ksmod.fit(X_train, y_train.values, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
-# ksmod.fit(X_train, y_train.values, epochs=1000,  batch_size=100, validation_data=(X_test, y_test.values), callbacks=[es, my_lr_scheduler])
-
-### Predict train/test set
-y_pred_train = ksmod.predict(X_train)    
-y_pred_test = ksmod.predict(X_test)   
+#     ### Predict train/test set
+#     y_pred_train = ksmod.predict(X_train)    
+#     y_pred_test = ksmod.predict(X_test)   
+        
+#     y_pred_train = [np.argmax(x) for x in y_pred_train]
+#     y_pred_test = [np.argmax(x) for x in y_pred_test]
     
-### Get regression metrics
-train_r2 = r2_score(y_train, y_pred_train)
-test_r2 = r2_score(y_test, y_pred_test)
+#     ### Get regression metrics
+#     roc_ = roc_auc_score_multiclass(y_test, y_pred_test)
+#     roc_0 = roc_[0]
+#     roc_1 = roc_[1]
+#     roc_2 = roc_[2]
+#     roc_3 = roc_[3]
+#     roc_mean = np.mean([roc_0, roc_1, roc_2, roc_3])
+    
+#     ### Get accuracy score
+#     acc_test_score = accuracy_score(y_test, y_pred_test)
+#     acc_train_score = accuracy_score(y_train, y_pred_train)
+    
+#     ### Bind data
+#     indat = pd.DataFrame({'cv': cv, 
+#                           'y_true': y_test, 'y_pred': y_pred_test, 'test_score': acc_test_score,
+#                           'train_score': acc_train_score, 'roc_0': roc_0, 'roc_1': roc_1, 'roc_2': roc_2, 
+#                           'roc_3': roc_3, 'roc_avg': roc_mean})
+#     outdat = pd.concat([outdat, indat])
+#     print(f"[{cv}] Train Accuracy Score: {round(acc_train_score*100, 3)}%  ---- Test Accuracy Score: {round(acc_test_score*100, 3)}% ---- Macro Mean: {round(roc_mean*100, 3)}%")
+    
 
-train_rmse = mean_squared_error(y_train, y_pred_train)
-test_rmse = mean_squared_error(y_test, y_pred_test)
 
-### Bind data
-indat = pd.DataFrame({'cv': cv, 
-                    #   'lat': X_test['lat'], 'lon': X_test['lon'],
-                        'y_true': y_test, 'y_pred': y_pred_test.ravel(), 'r2_train': train_r2,
-                        'r2_test': test_r2, 'rmse_train': train_rmse, 'rmse_test': test_rmse})
 
-outdat = pd.concat([outdat, indat])
-print(f"[{cv}] Cross-validation complete - Accuracy Score:")
-print("----------------------------------------------------------")
-print(f"r2: {train_r2} (Train R2) ------- {test_r2} (Test R2)")
-print(f"RMSE: {train_rmse} (Train RMSE) ------- {test_rmse} (Test RMSE)")
-print("----------------------------------------------------------")
+
+
+# outdat.groupby('cv').apply(lambda x: print(np.mean(x['rmse_test']), np.mean(x['rmse_train']), np.mean(x['rmse_test']) - np.mean(x['rmse_train'])))
+
+# outdat.groupby('cv').apply(lambda x: print(np.mean(x['r2_train']), "---", np.mean(x['r2_test'])))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # 10-Degree Block Cross validation data
+
+# cv_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
+# cv_dat = cv_dat.iloc[:, 1:3]
+
+# grid_data = build_cv_grids(10)
+
+# grid_results = cv_dat.apply(lambda x: check_grid(x['lat'], x['lon'], grid_data), axis=1)
+
+# cv_dat = cv_dat.assign(grid = [x[0] for x in grid_results], cv_grid = [x[1] for x in grid_results])
+
+# # cv_dat = cv_dat[['lat_lon', 'lat', 'lon', 'grid', 'cv_grid']]
+
+
+# cv_dat = cv_dat[['lat_lon', 'grid', 'cv_grid']]
+
+# # full_dat = full_dat.merge(cv_dat, on='lat_lon')
+
+# full_dat
+
+
+# X = X.merge(cv_dat, on='lat_lon')
+# X = X.iloc[:, 1:]
+
+# test_index = X[X['cv_grid'] == 0].index
+# train_index = X[X['cv_grid'] == 1].index
+
+# test_index
+# train_index
+
+# X_train, y_train = X[X.index.isin(train_index)], y[y.index.isin(train_index)]
+# X_test, y_test = X[X.index.isin(test_index)], y[y.index.isin(test_index)]
+
+
+
+# X_train = preprocessing.scale(X_train)
+# X_test = preprocessing.scale(X_test)
+
+# ksmod = Sequential()
+# # ksmod.add(Dense(100, activation='relu'))
+# ksmod.add(Dropout(0.10, input_shape=(len(X.columns),)))
+# ksmod.add(Dense(60, activation='relu'))
+# ksmod.add(Dense(30, activation='relu'))
+# ksmod.add(Dense(10, activation='relu'))
+# ksmod.add(Dense(5, activation='relu'))
+# ksmod.add(Dense(1, activation='relu'))
+# ksmod.compile(optimizer='adam', loss='mean_squared_error')
+# ksmod.fit(X_train, y_train.values, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
+# # ksmod.fit(X_train, y_train.values, epochs=1000,  batch_size=100, validation_data=(X_test, y_test.values), callbacks=[es, my_lr_scheduler])
+
+# ### Predict train/test set
+# y_pred_train = ksmod.predict(X_train)    
+# y_pred_test = ksmod.predict(X_test)   
+    
+# ### Get regression metrics
+# train_r2 = r2_score(y_train, y_pred_train)
+# test_r2 = r2_score(y_test, y_pred_test)
+
+# train_rmse = mean_squared_error(y_train, y_pred_train)
+# test_rmse = mean_squared_error(y_test, y_pred_test)
+
+# ### Bind data
+# indat = pd.DataFrame({'cv': cv, 
+#                     #   'lat': X_test['lat'], 'lon': X_test['lon'],
+#                         'y_true': y_test, 'y_pred': y_pred_test.ravel(), 'r2_train': train_r2,
+#                         'r2_test': test_r2, 'rmse_train': train_rmse, 'rmse_test': test_rmse})
+
+# outdat = pd.concat([outdat, indat])
+# print(f"[{cv}] Cross-validation complete - Accuracy Score:")
+# print("----------------------------------------------------------")
+# print(f"r2: {train_r2} (Train R2) ------- {test_r2} (Test R2)")
+# print(f"RMSE: {train_rmse} (Train RMSE) ------- {test_rmse} (Test RMSE)")
+# print("----------------------------------------------------------")
+
+
+
+
+
+
+
+
+
+# # 20-Degree Block Cross validation data
+
+# cv_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
+# cv_dat = cv_dat.iloc[:, 1:3]
+
+# grid_data = build_cv_grids(20)
+
+# grid_results = cv_dat.apply(lambda x: check_grid(x['lat'], x['lon'], grid_data), axis=1)
+
+# cv_dat = cv_dat.assign(grid = [x[0] for x in grid_results], cv_grid = [x[1] for x in grid_results])
+
+# # cv_dat = cv_dat[['lat_lon', 'lat', 'lon', 'grid', 'cv_grid']]
+
+
+# cv_dat = cv_dat[['lat_lon', 'grid', 'cv_grid']]
+
+# # full_dat = full_dat.merge(cv_dat, on='lat_lon')
+
+# full_dat
+
+
+# X = X.merge(cv_dat, on='lat_lon')
+# X = X.iloc[:, 1:]
+
+# test_index = X[X['cv_grid'] == 0].index
+# train_index = X[X['cv_grid'] == 1].index
+
+# test_index
+# train_index
+
+# X_train, y_train = X[X.index.isin(train_index)], y[y.index.isin(train_index)]
+# X_test, y_test = X[X.index.isin(test_index)], y[y.index.isin(test_index)]
+
+
+
+# X_train = preprocessing.scale(X_train)
+# X_test = preprocessing.scale(X_test)
+
+# ksmod = Sequential()
+# # ksmod.add(Dense(100, activation='relu'))
+# ksmod.add(Dropout(0.10, input_shape=(len(X.columns),)))
+# ksmod.add(Dense(60, activation='relu'))
+# ksmod.add(Dense(30, activation='relu'))
+# ksmod.add(Dense(10, activation='relu'))
+# ksmod.add(Dense(5, activation='relu'))
+# ksmod.add(Dense(1, activation='relu'))
+# ksmod.compile(optimizer='adam', loss='mean_squared_error')
+# ksmod.fit(X_train, y_train.values, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
+# # ksmod.fit(X_train, y_train.values, epochs=1000,  batch_size=100, validation_data=(X_test, y_test.values), callbacks=[es, my_lr_scheduler])
+
+# ### Predict train/test set
+# y_pred_train = ksmod.predict(X_train)    
+# y_pred_test = ksmod.predict(X_test)   
+    
+# ### Get regression metrics
+# train_r2 = r2_score(y_train, y_pred_train)
+# test_r2 = r2_score(y_test, y_pred_test)
+
+# train_rmse = mean_squared_error(y_train, y_pred_train)
+# test_rmse = mean_squared_error(y_test, y_pred_test)
+
+# ### Bind data
+# indat = pd.DataFrame({'cv': cv, 
+#                     #   'lat': X_test['lat'], 'lon': X_test['lon'],
+#                         'y_true': y_test, 'y_pred': y_pred_test.ravel(), 'r2_train': train_r2,
+#                         'r2_test': test_r2, 'rmse_train': train_rmse, 'rmse_test': test_rmse})
+
+# outdat = pd.concat([outdat, indat])
+# print(f"[{cv}] Cross-validation complete - Accuracy Score:")
+# print("----------------------------------------------------------")
+# print(f"r2: {train_r2} (Train R2) ------- {test_r2} (Test R2)")
+# print(f"RMSE: {train_rmse} (Train RMSE) ------- {test_rmse} (Test RMSE)")
+# print("----------------------------------------------------------")
