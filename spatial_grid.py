@@ -1,8 +1,11 @@
 import geopandas as gpd
 from shapely.geometry import Polygon, Point
 import numpy as np
+import pandas as pd
+from pandarallel import pandarallel
 
-
+# Set number of cores to use
+pandarallel.initialize(nb_workers = 30)
 
 def build_cv_grids(delta):
     # Getting range of lat/lon 
@@ -13,6 +16,8 @@ def build_cv_grids(delta):
     lats = list(range(int(np.floor(ymin)), int(np.ceil(ymax)), delta))
     lons = list(range(int(np.floor(xmin)), int(np.ceil(xmax)), delta))
     lats.reverse()
+    lats
+    lons
         
     # Get count grids to alternative across lon
     even_grids = [0, 1] * int(len(lats))
@@ -23,19 +28,20 @@ def build_cv_grids(delta):
     grids = []
     for i in range(0, len(lons)):
         x = lons[i]
-        if i % 2 == 1:
+        if i % 2 == 0:
             grids.extend(even_grids[0:len(lats)])
         else:
             grids.extend(odd_grids[0:len(lats)])
         for y in lats:        
             polygons.append( Polygon([(x, y), (x - delta, y), (x - delta, y + delta), (x, y + delta)]) )
+        print(i)
             
     grid = gpd.GeoDataFrame({'geometry':polygons, 'grid': np.linspace(0, len(polygons), len(polygons)).astype(int), 'cv_grid': grids})
+    
+    # Add centroid lats and lons
+    grid['lon_cent'] = grid['geometry'].centroid.x
+    grid['lat_cent'] = grid['geometry'].centroid.y
     return grid
-
-
-
-
 
 def check_grid(lat, lon, grid_data):
     # If on the edge, don't center
@@ -62,8 +68,10 @@ def check_grid(lat, lon, grid_data):
             # print("true")
             n_grid = grid_data.loc[i, 'grid']
             cv_n_grid = grid_data.loc[i, 'cv_grid']
-            return (n_grid, cv_n_grid)
-    return (999, 999)
+            lon_cent = grid_data.loc[i, 'lon_cent']
+            lat_cent = grid_data.loc[i, 'lat_cent']
+            return (n_grid, cv_n_grid, lon_cent, lat_cent)
+    return (999, 999, 999, 999)
 
 
 ndat = full_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
@@ -72,7 +80,7 @@ ndat = full_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
 # 
 ndat
 
-grid_data = build_cv_grids(.1)
+grid_data = build_cv_grids(1)
 grid_data
 
 grid_results = ndat.apply(lambda x: check_grid(x['lat'], x['lon'], grid_data), axis=1)
