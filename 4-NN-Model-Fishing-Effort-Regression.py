@@ -19,20 +19,52 @@ from sklearn.preprocessing import StandardScaler
 
 
 def procEffortReg(dat):
-    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'H'])
+    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'H', 'eez', 'mpa', 'rfmo'])
     
     dat = dat.assign(lat_x_lon = dat['lat'] * dat['lon'],
                      mmsi = dat['mmsi'].fillna(0),
-                     eez = dat['eez'].fillna(0),
-                     mpa = dat['mpa'].fillna(0),
-                     rfmo = dat['rfmo'].fillna(0),
                      fishing_hours = dat['fishing_hours'].fillna(0))
 
     dat = dat.drop(columns='port')
 
-    dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
-    dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
-    dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
+    # dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
+    # dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
+    # dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
+    
+    X = dat
+    
+    X = X.dropna().reset_index(drop=True)
+    
+    y = X['fishing_hours'] / X['mmsi']
+    y = X['fishing_hours']
+    y = y.fillna(0)
+    y = np.log(1 + y)
+
+    X = X.drop(columns=['fishing_hours', 'mmsi'])
+
+    # ### Predictors that reduce model accuracy
+    # X = X[X.columns.drop(list(X.filter(regex='gear')))]
+    X = X[X.columns.drop(list(X.filter(regex='present')))]
+    X = X[X.columns.drop(list(X.filter(regex='skew')))]
+    X = X[X.columns.drop(list(X.filter(regex='kurt')))]
+            
+    return X, y
+
+
+
+
+def procEffortReg(dat):
+    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'H', 'eez', 'mpa', 'rfmo'])
+    
+    dat = dat.assign(lat_x_lon = dat['lat'] * dat['lon'],
+                     mmsi = dat['mmsi'].fillna(0),
+                     fishing_hours = dat['fishing_hours'].fillna(0))
+
+    dat = dat.drop(columns='port')
+
+    # dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
+    # dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
+    # dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
     
     X = dat
     
@@ -47,10 +79,11 @@ def procEffortReg(dat):
     # ### Predictors that reduce model accuracy
     # X = X[X.columns.drop(list(X.filter(regex='gear')))]
     X = X[X.columns.drop(list(X.filter(regex='present')))]
-    # X = X[X.columns.drop(list(X.filter(regex='skew')))]
-    # X = X[X.columns.drop(list(X.filter(regex='kurt')))]
+    X = X[X.columns.drop(list(X.filter(regex='skew')))]
+    X = X[X.columns.drop(list(X.filter(regex='kurt')))]
             
     return X, y
+
 
 
 
@@ -92,13 +125,13 @@ scaler = preprocessing.StandardScaler().fit(X)
 X_scaled = scaler.transform(X)
 
 ksmod = Sequential()
-ksmod.add(Dropout(0.50, input_shape=(len(X.columns),)))
+ksmod.add(Dropout(0.5, input_shape=(len(X.columns),)))
 ksmod.add(Dense(70, activation='relu'))
 ksmod.add(Dense(60, activation='relu'))
 ksmod.add(Dense(30, activation='relu'))
 ksmod.add(Dense(10, activation='relu'))
 ksmod.add(Dense(5, activation='relu'))
-ksmod.add(Dropout(0.50, input_shape=(len(X.columns),)))
+ksmod.add(Dropout(0.5, input_shape=(len(X.columns),)))
 ksmod.add(Dense(1, activation='relu'))
 ksmod.compile(optimizer='adam', loss='mean_squared_error')
 ksmod.fit(X_scaled, y.values, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
@@ -122,7 +155,8 @@ print("Processing 2000-2014")
 
 y_hist_pred_2015 = ksmod.predict(X_scaled)
 
-
+# Get residuals
+y_residuals = y.ravel() - y_hist_pred_2015.ravel()
 
 
 
@@ -199,7 +233,7 @@ ssp585_pred_2045 = pd.DataFrame({'lat': X_ssp585_2045['lat'], 'lon': X_ssp585_20
 
 
 
-print("Processing 2060-207")
+print("Processing 2060-2075")
 # ------------------
 # 2060-2075
 full_dat_ssp126_2060_2075_dat = pd.read_csv("data/full_dat_ssp126_2060_2075_dat.csv")
@@ -263,7 +297,6 @@ savedat = savedat.merge(ssp585_pred_2060, on=['lat', 'lon'])
 
 savedat = savedat.merge(ssp126_pred_2075, on=['lat', 'lon'])
 savedat = savedat.merge(ssp585_pred_2075, on=['lat', 'lon'])
-
 
 
 # Pandas dataframe

@@ -27,11 +27,11 @@ def procEffortReg(dat):
                      mpa = dat['mpa'].fillna(0),
                      rfmo = dat['rfmo'].fillna(0))
 
-    dat = dat.drop(columns='port')
+    dat = dat.drop(columns=['port', 'mmsi', 'eez', 'mpa', 'rfmo'])
 
-    dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
-    dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
-    dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
+    # dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
+    # dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
+    # dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
     
     X = dat
     
@@ -39,15 +39,15 @@ def procEffortReg(dat):
     
     y = X['H']
     # y = y.fillna(0)
-    # y = np.log(1 + y)
+    y = np.log(1 + y)
 
-    X = X.drop(columns=['H', 'mmsi'])
+    X = X.drop(columns=['H'])
 
     # ### Predictors that reduce model accuracy
     # X = X[X.columns.drop(list(X.filter(regex='gear')))]
     X = X[X.columns.drop(list(X.filter(regex='present')))]
     # X = X[X.columns.drop(list(X.filter(regex='skew')))]
-    # X = X[X.columns.drop(list(X.filter(regex='kurt')))]
+    X = X[X.columns.drop(list(X.filter(regex='kurt')))]
             
     return X, y
 
@@ -94,16 +94,28 @@ scaler = preprocessing.StandardScaler().fit(X_train)
 X_train_scaled = scaler.transform(X_train)
 
 ksmod = Sequential()
-ksmod.add(Dropout(0.10, input_shape=(len(X_train.columns),)))
+# ksmod.add(Dropout(0.50, input_shape=(len(X_train.columns),)))
 ksmod.add(Dense(60, activation='relu'))
+ksmod.add(Dense(50, activation='relu'))
+ksmod.add(Dense(40, activation='relu'))
 ksmod.add(Dense(30, activation='relu'))
+ksmod.add(Dense(20, activation='relu'))
 ksmod.add(Dense(10, activation='relu'))
 ksmod.add(Dense(5, activation='relu'))
-ksmod.add(Dropout(0.10, input_shape=(len(X_train.columns),)))
+# ksmod.add(Dropout(0.50, input_shape=(len(X_train.columns),)))
 ksmod.add(Dense(1, activation='relu'))
 ksmod.compile(optimizer='adam', loss='mean_squared_error')
 ksmod.fit(X_train_scaled, y_train.values, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
 
+
+### Predict train/test set
+y_pred_train = ksmod.predict(X_train_scaled)    
+    
+### Get regression metrics
+r2 = r2_score(y_train, y_pred_train)
+rmse = mean_squared_error(y_train, y_pred_train)
+
+print(f"R-squared: {round(r2, 3)*100}% // RMSE: {round(rmse, 3)}")
 
 
 
