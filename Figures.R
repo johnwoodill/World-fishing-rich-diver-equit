@@ -62,6 +62,8 @@ ggplot(data = mp, aes(x = long, y = lat, group = group)) +
   geom_sf(data = eezs, color = '#374a6d', alpha = 0.5, fill = NA, size = 0.1, inherit.aes = FALSE) +
   # stat_contour(data = pdat, aes(x=lon, y=lat, z=fishing_hours, fill=..level.., group=1), geom="polygon") +
   # First segment to the east
+  xlim(-100, 100) +
+  
   # annotate("segment", x = -150 + 360, xend = -150 + 360, y = 0, yend = 60) +
   # annotate("segment", x = -150 + 360, xend = -130 + 360, y = 0, yend = 0) +
   # annotate("segment", x = -130 + 360, xend = -130 + 360, y = 0, yend = -60) +

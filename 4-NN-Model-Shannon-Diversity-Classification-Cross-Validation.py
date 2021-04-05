@@ -228,7 +228,7 @@ for dropout_ in [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
         ksmod.add(Dense(10, activation='relu'))
         ksmod.add(Dense(5, activation='relu'))
         ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
-        ksmod.add(Dense(4, activation='softmax'))
+        ksmod.add(Dense(4, activation='sigmoid'))
         ksmod.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
         ksmod.fit(X_train, dummy_y, verbose=0, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
 

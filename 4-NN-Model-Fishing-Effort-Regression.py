@@ -299,6 +299,9 @@ savedat = savedat.merge(ssp126_pred_2075, on=['lat', 'lon'])
 savedat = savedat.merge(ssp585_pred_2075, on=['lat', 'lon'])
 
 
+# savedat = savedat.assign(ssp585_pred_2075_diff = savedat['y_ssp585_pred_2075'] - savedat['y_pred_historical'])
+
+
 # Pandas dataframe
 print("Saving: 'data/NN_fishing_effort_regression_model_results.csv'")
 savedat.to_csv('data/NN_fishing_effort_regression_model_results.csv', index=False)

@@ -81,11 +81,15 @@ dat = dat.dropna()
 #        'lat_lon'],
 #       dtype='object')
 # ------------------------------------------------------------------------------
-
+# GFW 2012-2016
 dat.to_csv('data/full_GFW_public_1d.csv')
 
 ### Load data
 dat = pd.read_csv('data/full_GFW_public_1d.csv', index_col=False)
+
+# GFW 2012-2020
+dat = pd.read_csv('/data2/GFW_V2/', index_col=False)
+
 
 ### Aggregate to 10th degree lon/lat: 
 
