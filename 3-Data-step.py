@@ -1,7 +1,5 @@
 import pandas as pd
 import numpy as np
-import xarray
-import glob as glob
 import geopandas as gpd
 from shapely.geometry import Point, Polygon, shape, LinearRing
 from shapely.ops import nearest_points
@@ -28,17 +26,17 @@ def dist(lat1, lon1, lat2, lon2):
 
 def haversine(lon1, lat1, lon2, lat2):
     """
-    Calculate the great circle distance between two points 
+    Calculate the great circle distance between two points
     on the earth (specified in decimal degrees)
     """
-    # convert decimal degrees to radians 
+    # convert decimal degrees to radians
     lon1, lat1, lon2, lat2 = map(math.radians, [lon1, lat1, lon2, lat2])
-    # haversine formula 
-    dlon = lon2 - lon1 
-    dlat = lat2 - lat1 
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
     a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-    c = 2 * math.asin(np.sqrt(a)) 
-    r = 6371 # Radius of earth in kilometers. Use 3956 for miles
+    c = 2 * math.asin(np.sqrt(a))
+    r = 6371  # Radius of earth in kilometers. Use 3956 for miles
     return c * r
 
 
@@ -52,8 +50,8 @@ def get_coastlines():
         
 def get_ports():
     ports = []
-    ne_ports = shpreader.natural_earth(resolution = '10m',
-                                    category = 'cultural',
+    ne_ports = shpreader.natural_earth(resolution='10m',
+                                    category='cultural',
                                     name='ports')
     reader = shpreader.Reader(ne_ports)                             
     ports = reader.records()
@@ -76,7 +74,7 @@ def port_dist(ndat):
     lat = ndat['lat'].iat[0]
     # print("Port Distance", lon, lat)
     indat = ports
-    indat = indat.assign(lon = np.where(indat['lon'] < 0, indat['lon'] + 361, indat['lon']))  
+    indat = indat.assign(lon = np.where(indat['lon'] < 0, indat['lon'] + 361, indat['lon']))
     # if lon < -130:
     #     lon = lon + 360
     #     indat = indat.assign(lon = np.where(indat['lon'] < 0, indat['lon'] + 360, indat['lon']))
@@ -239,34 +237,33 @@ def rfmo_check(ndat):
 
 # -----------------------------------------------------------------
 print("Binding compiled data")
-
 # Grid all 1d data in the world
 
 
 # ### Calc whether country has ever fished at grid
 feffort_nat_dat = pd.read_csv('data/total_fishing_effort_nation.csv')
-unique_flags = feffort_nat_dat['flag'].unique()
+
+unique_flags = feffort_nat_dat['flag_gfw'].unique()
 
 ll_dat = feffort_nat_dat.groupby('lat_lon').agg({'lat': 'mean', 'lon': 'mean'}).sort_values(['lon', 'lat']).reset_index()
 for flag_ in unique_flags:
-    indat = feffort_nat_dat[['lat_lon', 'lat', 'lon', 'flag']]
-    indat = indat[indat['flag'] == flag_]
-    indat = indat.assign(flag = 1)
-    indat = indat.rename(columns={'flag': f"{flag_}_present"})
+    indat = feffort_nat_dat[['lat_lon', 'lat', 'lon', 'flag_gfw']]
+    indat = indat[indat['flag_gfw'] == flag_]
+    indat = indat.assign(flag_gfw=1)
+    indat = indat.rename(columns={'flag_gfw': f"{flag_}_present"})
     ll_dat = ll_dat.merge(indat, how='left', on=['lat_lon', 'lat', 'lon']).fillna(0)
-    
-    
-    
-# ### Calc whether geartype has ever fished at grid
+
+ 
+# ### Calc whether vessel_class_gfw has ever fished at grid
 feffort_gear_dat = pd.read_csv('data/total_fishing_effort_gear.csv')
-unique_geartype = feffort_gear_dat['geartype'].unique()
+unique_vessel_class_gfw = feffort_gear_dat['vessel_class_gfw'].unique()
 
 gg_dat = feffort_gear_dat.groupby('lat_lon').agg({'lat': 'mean', 'lon': 'mean'}).sort_values(['lon', 'lat']).reset_index()
-for gear_ in unique_geartype:
-    indat = feffort_gear_dat[['lat_lon', 'lat', 'lon', 'geartype']]
-    indat = indat[indat['geartype'] == gear_]
-    indat = indat.assign(geartype = 1)
-    indat = indat.rename(columns={'geartype': f"{gear_}_gear"})
+for gear_ in unique_vessel_class_gfw:
+    indat = feffort_gear_dat[['lat_lon', 'lat', 'lon', 'vessel_class_gfw']]
+    indat = indat[indat['vessel_class_gfw'] == gear_]
+    indat = indat.assign(vessel_class_gfw=1)
+    indat = indat.rename(columns={'vessel_class_gfw': f"{gear_}_gear"})
     gg_dat = gg_dat.merge(indat, how='left', on=['lat_lon', 'lat', 'lon']).fillna(0)
     
 
@@ -283,14 +280,12 @@ mpa_check_dat = pd.read_csv('data/mpa_check_dat.csv')
 rfmo_check_dat = pd.read_csv('data/rfmo_check_dat.csv')
 
 
-
 full_dat = feffort_dat.merge(shan_divi, how='left', on=['lat_lon', 'lon', 'lat'])
 full_dat = full_dat.merge(richness_dat, how='left', on=['lat_lon', 'lon', 'lat'])
 full_dat = full_dat.merge(ll_dat, how='left', on=['lat_lon', 'lon', 'lat'])
 full_dat = full_dat.merge(gg_dat, how='left', on=['lat_lon', 'lon', 'lat'])
 
-full_dat = full_dat.assign(lon = np.where(full_dat['lon'] < 0, full_dat['lon'] + 361, full_dat['lon']))
-full_dat = full_dat.assign(lat_lon = full_dat['lat'].astype(str) + "_" + full_dat['lon'].astype(str))
+full_dat = full_dat.assign(lat_lon=full_dat['lat'].astype(str) + "_" + full_dat['lon'].astype(str))
 
 
 print("Binding CMIP6 data")
@@ -394,6 +389,7 @@ print("Saving Historical Data")
 # ------------------------------------------------------------------------
 ##### Historical Data
 full_dat_hist_dat = hist_dat.merge(full_dat, how='left', on=['lat_lon', 'lat', 'lon'])
+
 
 # ### Remove inf and na
 full_dat_hist_dat = full_dat_hist_dat.replace([np.inf, -np.inf], np.nan)
