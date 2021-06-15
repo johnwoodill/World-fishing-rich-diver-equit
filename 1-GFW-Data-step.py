@@ -17,15 +17,17 @@ def shan_div(indat):
         'lat': [lat], 'H': [H], 'E': [E]})
     return outdat
 
-
+print("Binding GFW Data")
 # Bind GFW data
 files = glob.glob('/data2/GFW_V2/GFW_10d_2012_2020/public/*.csv')
 
 list_ = []
-for file in files:
-    df = pd.read_csv(file)
+for file_ in files:
+    df = pd.read_csv(file_)
+    df = df[df['fishing_hours'] > 0]
     df = df.assign(lat=(df['cell_ll_lat'] + 0.05),
                    lon=(df['cell_ll_lon'] + 0.05))
+    
     df = df[['date', 'lat', 'lon', 'mmsi', 'hours', 'fishing_hours']]
     list_.append(df)
 
@@ -38,7 +40,6 @@ vessel_dat = vessel_dat.get(['mmsi', 'flag_gfw', 'vessel_class_gfw', 'engine_pow
 
 # Merge on mmsi
 dat = dat.merge(vessel_dat, how='left', on='mmsi')
-
 
 # Column names
 # 'date', 'cell_ll_lat', 'cell_ll_lon', 'mmsi', 'hours', 'fishing_hours',
@@ -89,10 +90,14 @@ dat.to_csv('data/full_GFW_public_1d.csv', index=False)
 # Load data
 dat = pd.read_parquet('data/full_GFW_public_1d.parquet')
 
-dat = dat[dat['year'] <= 2016]
+# dat = dat[dat['year'] <= 2016]
 
 dat.head()
 
+len(dat)
+len(dat.drop_duplicates(['date', 'lat_lon']))
+
+print("Calculating Total Fishing Effort")
 # Total Fishing Effort
 feffort_dat = dat.groupby(['year', 'lat_lon']).agg(
     {'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum',
@@ -106,7 +111,9 @@ feffort_dat = feffort_dat.rename(columns={'mmsi': 'mmsi_count'})
 
 feffort_dat.to_csv('data/total_fishing_effort.csv', index=False)
 
+len(feffort_dat)
 
+print("Calculating Total Fishing Effort by nation")
 # Total Fishing Effort by nation
 feffort_nat_dat = dat.groupby(['year', 'lat_lon', 'flag_gfw']).agg(
     {'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
@@ -116,21 +123,30 @@ feffort_nat_dat = feffort_nat_dat.groupby(['lat_lon', 'flag_gfw']).agg(
 
 feffort_nat_dat.to_csv('data/total_fishing_effort_nation.csv', index=False)
 
-
+print("Calculating Total Fishing Effort by Geartype")
 # Total Fishing Effort by geartype
-feffort_gear_nat_dat = dat.groupby(['year', 'lat_lon', 'vessel_class_gfw']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
-feffort_gear_nat_dat = feffort_gear_nat_dat.groupby(['lat_lon', 'vessel_class_gfw']).agg({'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+feffort_gear_nat_dat = dat.groupby(
+    ['year', 'lat_lon', 'vessel_class_gfw']).agg(
+    {'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
+    
+feffort_gear_nat_dat = feffort_gear_nat_dat.groupby(
+    ['lat_lon', 'vessel_class_gfw']).agg(
+        {'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'mean'}).reset_index()
+    
 feffort_gear_nat_dat.to_csv('data/total_fishing_effort_gear.csv', index=False)
 
-
+print("Calculating Species Richness")
 # Species Richness
-richness_dat = dat.groupby(['lat_lon']).agg({'lat': 'mean', 'lon': 'mean', 'flag_gfw': 'nunique'}).reset_index()
+richness_dat = dat.groupby(['lat_lon']).agg(
+    {'lat': 'mean', 'lon': 'mean', 'flag_gfw': 'nunique'}).reset_index()
 richness_dat = richness_dat.rename(columns={'flag_gfw': 'richness'})
 richness_dat.to_csv('data/total_species_richness.csv', index=False)
 
-
+print("Calculating Shannon Diversity Index")
 # Shannon Diversity Index
-sdiv_dat = dat.groupby(['lat_lon', 'flag_gfw']).agg({'lat': 'mean', 'lon': 'mean', 'year': 'count'}).reset_index()
+sdiv_dat = dat.groupby(['lat_lon', 'flag_gfw']).agg(
+    {'lat': 'mean', 'lon': 'mean', 'year': 'count'}).reset_index()
+
 sdiv_dat = sdiv_dat.rename(columns={'year': 'obs_count'})
 
 shan_divi = sdiv_dat.groupby('lat_lon').apply(lambda x: shan_div(x))

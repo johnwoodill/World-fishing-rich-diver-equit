@@ -1,10 +1,5 @@
-# from re import escape
-# from pygam import LinearGAM, s, f
-# from pygam.datasets import wage
 import pandas as pd
 from sklearn.metrics import accuracy_score, r2_score, mean_squared_error
-# import geopandas as gpd
-# from shapely.geometry import Polygon, Point
 import numpy as np
 from keras.layers import Input, Dense, Dropout
 from keras.models import Model, Sequential
@@ -15,7 +10,10 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from sklearn.model_selection import cross_val_score, KFold
 from keras import optimizers, callbacks
 from sklearn.preprocessing import MinMaxScaler
+from numpy.random import seed
 
+# Set seed for replication
+seed(123)
 
 
 def procEffortReg(dat):
@@ -31,19 +29,17 @@ def procEffortReg(dat):
     dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
     dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
    
-    X = dat
-   
-    X = X.dropna().reset_index(drop=True)
+    X = dat.dropna().reset_index(drop=True)
    
     y = X['fishing_hours'] / X['mmsi_count']
     y = y.fillna(0)
-    # y = np.log(1 + y)
+    y = np.log(1 + y)
 
-    X = X.drop(columns=['fishing_hours', 'mmsi_count'])
+    X = X.drop(columns=['fishing_hours', 'mmsi_count', 'rfmo'])
 
     # ### Predictors that reduce model accuracy
     # X = X[X.columns.drop(list(X.filter(regex='gear')))]
-    # X = X[X.columns.drop(list(X.filter(regex='present')))]
+    X = X[X.columns.drop(list(X.filter(regex='present')))]
     # X = X[X.columns.drop(list(X.filter(regex='skew')))]
     # X = X[X.columns.drop(list(X.filter(regex='kurt')))]
           
@@ -76,7 +72,6 @@ my_lr_scheduler = callbacks.LearningRateScheduler(adapt_learning_rate)
 
 
 
-#%%
 # --------------------------------------------------------------------
 # NN Model
 full_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
@@ -86,20 +81,23 @@ X, y = procEffortReg(full_dat)
 X_lon = X['lon']
 X_lat = X['lat']
 
-scaler = MinMaxScaler().fit(X)
+X = X.drop(columns=['lat', 'lon'])
+
+scaler = StandardScaler().fit(X)
 X_scaled = scaler.transform(X)
 
 ksmod = Sequential()
-# ksmod.add(Dropout(0.5, input_shape=(len(X.columns),)))
+ksmod.add(Dropout(0.40, input_shape=(len(X.columns),)))
+# ksmod.add(Dense(100, activation='relu'))
 ksmod.add(Dense(70, activation='relu'))
 ksmod.add(Dense(60, activation='relu'))
 ksmod.add(Dense(30, activation='relu'))
 ksmod.add(Dense(10, activation='relu'))
 ksmod.add(Dense(5, activation='relu'))
-# ksmod.add(Dropout(0.5, input_shape=(len(X.columns),)))
+ksmod.add(Dropout(0.40, input_shape=(len(X.columns),)))
 ksmod.add(Dense(1, activation='relu'))
 ksmod.compile(optimizer='adam', loss='mean_squared_error')
-ksmod.fit(X_scaled, y.values, epochs=1000,  batch_size=32, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
+ksmod.fit(X_scaled, y.values, epochs=1000,  batch_size=128, validation_split=0.2, shuffle=True, callbacks=[es, my_lr_scheduler])
 
 
 ### Predict train/test set
@@ -111,7 +109,11 @@ mse_ = mean_squared_error(y, y_pred_train)
 
 print(f"R-squared: {round(r2, 3)*100}% // RMSE: {round(mse_, 3)}")
 
-#%%
+# import sys
+# sys.exit()
+
+
+
 
 
 print("Processing 2000-2014")
@@ -138,8 +140,8 @@ full_dat_ssp585_2015_2030_dat = pd.read_csv("data/full_dat_ssp585_2015_2030_dat.
 full_dat_ssp585_2015_2030_dat.columns = full_dat_ssp585_2015_2030_dat.columns.str.replace("_2015-2030", "")
 X_ssp585_2015, y_ssp585_2015 = procEffortReg(full_dat_ssp585_2015_2030_dat)
 
-X_ssp126_2015_scaled = scaler.transform(X_ssp126_2015)
-X_ssp585_2015_scaled = scaler.transform(X_ssp585_2015)
+X_ssp126_2015_scaled = scaler.transform(X_ssp126_2015.drop(columns=['lat', 'lon']))
+X_ssp585_2015_scaled = scaler.transform(X_ssp585_2015.drop(columns=['lat', 'lon']))
 
 y_ssp126_pred_2015 = ksmod.predict(X_ssp126_2015_scaled)
 y_ssp585_pred_2015 = ksmod.predict(X_ssp585_2015_scaled)
@@ -162,8 +164,8 @@ full_dat_ssp585_2030_2045_dat = pd.read_csv("data/full_dat_ssp585_2030_2045_dat.
 full_dat_ssp585_2030_2045_dat.columns = full_dat_ssp585_2030_2045_dat.columns.str.replace("_2030-2045", "")
 X_ssp585_2030, y_ssp585_2030 = procEffortReg(full_dat_ssp585_2030_2045_dat)
 
-X_ssp126_2030_scaled = scaler.transform(X_ssp126_2030)
-X_ssp585_2030_scaled = scaler.transform(X_ssp585_2030)
+X_ssp126_2030_scaled = scaler.transform(X_ssp126_2030.drop(columns=['lat', 'lon']))
+X_ssp585_2030_scaled = scaler.transform(X_ssp585_2030.drop(columns=['lat', 'lon']))
 
 y_ssp126_pred_2030 = ksmod.predict(X_ssp126_2030_scaled)
 y_ssp585_pred_2030 = ksmod.predict(X_ssp585_2030_scaled)
@@ -186,8 +188,8 @@ full_dat_ssp585_2045_2060_dat = pd.read_csv("data/full_dat_ssp585_2045_2060_dat.
 full_dat_ssp585_2045_2060_dat.columns = full_dat_ssp585_2045_2060_dat.columns.str.replace("_2045-2060", "")
 X_ssp585_2045, y_ssp585_2045 = procEffortReg(full_dat_ssp585_2045_2060_dat)
 
-X_ssp126_2045_scaled = scaler.transform(X_ssp126_2045)
-X_ssp585_2045_scaled = scaler.transform(X_ssp585_2045)
+X_ssp126_2045_scaled = scaler.transform(X_ssp126_2045.drop(columns=['lat', 'lon']))
+X_ssp585_2045_scaled = scaler.transform(X_ssp585_2045.drop(columns=['lat', 'lon']))
 
 y_ssp126_pred_2045 = ksmod.predict(X_ssp126_2045_scaled)
 y_ssp585_pred_2045 = ksmod.predict(X_ssp585_2045_scaled)
@@ -209,8 +211,8 @@ full_dat_ssp585_2060_2075_dat = pd.read_csv("data/full_dat_ssp585_2060_2075_dat.
 full_dat_ssp585_2060_2075_dat.columns = full_dat_ssp585_2060_2075_dat.columns.str.replace("_2060-2075", "")
 X_ssp585_2060, y_ssp585_2060 = procEffortReg(full_dat_ssp585_2060_2075_dat)
 
-X_ssp126_2060_scaled = scaler.transform(X_ssp126_2060)
-X_ssp585_2060_scaled = scaler.transform(X_ssp585_2060)
+X_ssp126_2060_scaled = scaler.transform(X_ssp126_2060.drop(columns=['lat', 'lon']))
+X_ssp585_2060_scaled = scaler.transform(X_ssp585_2060.drop(columns=['lat', 'lon']))
 
 y_ssp126_pred_2060 = ksmod.predict(X_ssp126_2060_scaled)
 y_ssp585_pred_2060 = ksmod.predict(X_ssp585_2060_scaled)
@@ -232,8 +234,8 @@ full_dat_ssp585_2075_2090_dat = pd.read_csv("data/full_dat_ssp585_2075_2090_dat.
 full_dat_ssp585_2075_2090_dat.columns = full_dat_ssp585_2075_2090_dat.columns.str.replace("_2075-2090", "")
 X_ssp585_2075, y_ssp585_2075 = procEffortReg(full_dat_ssp585_2075_2090_dat)
 
-X_ssp126_2075_scaled = scaler.transform(X_ssp126_2075)
-X_ssp585_2075_scaled = scaler.transform(X_ssp585_2075)
+X_ssp126_2075_scaled = scaler.transform(X_ssp126_2075.drop(columns=['lat', 'lon']))
+X_ssp585_2075_scaled = scaler.transform(X_ssp585_2075.drop(columns=['lat', 'lon']))
 
 y_ssp126_pred_2075 = ksmod.predict(X_ssp126_2075_scaled)
 y_ssp585_pred_2075 = ksmod.predict(X_ssp585_2075_scaled)
@@ -266,6 +268,9 @@ savedat = savedat.merge(ssp585_pred_2075, on=['lat', 'lon'])
 
 # savedat = savedat.assign(ssp585_pred_2075_diff = savedat['y_ssp585_pred_2075'] - savedat['y_pred_historical'])
 
+print(np.sum(savedat['y_pred_historical']))
+print(np.sum(savedat['y_ssp126_pred_2075']))
+print(np.sum(savedat['y_ssp585_pred_2075']))
 
 # Pandas dataframe
 print("Saving: 'data/NN_fishing_effort_regression_model_results.csv'")

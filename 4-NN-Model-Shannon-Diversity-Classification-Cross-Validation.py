@@ -83,7 +83,7 @@ def check_grid(lat, lon, grid_data):
 
 
 def procShannon(dat):
-    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'eez', 'mpa', 'rfmo', 'mmsi'])
+    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'mmsi_count'])
     
     dat = dat.assign(lat_x_lon = dat['lat'] * dat['lon'],
                      H = dat['H'].fillna(0),
@@ -91,9 +91,9 @@ def procShannon(dat):
 
     dat = dat.drop(columns='port')
 
-    # dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
-    # dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
-    # dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
+    dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
+    dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
+    dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
     
     X = dat
     
@@ -115,7 +115,7 @@ def procShannon(dat):
     check_y = pd.DataFrame({'y': y, 'count': 1})
     check_y.groupby('y').count()
     
-    X = X.drop(columns='H')
+    X = X.drop(columns=['H', 'rfmo'])
 
     # ### Predictors that reduce model accuracy
     # X = X[X.columns.drop(list(X.filter(regex='gear')))]
@@ -221,16 +221,16 @@ for dropout_ in [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
         dummy_y = np_utils.to_categorical(encoded_Y)
 
         ksmod = Sequential()
-        ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
+        # ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
         ksmod.add(Dense(70, activation='relu'))
         ksmod.add(Dense(60, activation='relu'))
         ksmod.add(Dense(30, activation='relu'))
         ksmod.add(Dense(10, activation='relu'))
-        ksmod.add(Dense(5, activation='relu'))
-        ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
+        # ksmod.add(Dense(5, activation='relu'))
+        # ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
         ksmod.add(Dense(4, activation='sigmoid'))
         ksmod.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-        ksmod.fit(X_train, dummy_y, verbose=0, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
+        ksmod.fit(X_train, dummy_y, verbose=0, epochs=1000,  batch_size=128, validation_split=0.2, shuffle=True, callbacks=[es, my_lr_scheduler])
 
         ### Predict train/test set
         y_pred_train = ksmod.predict(X_train)    

@@ -285,9 +285,6 @@ ssp585_dat.to_hdf('data/full_CMIP6_ssp585_2030_2045.hdf', key='ssp585_2030_2045'
 
 
 
-ssp585_dat.to_csv('data/full_CMIP6_ssp585_2030_2045.hdf', key='ssp585_2030_2045')
-
-
 
 
 

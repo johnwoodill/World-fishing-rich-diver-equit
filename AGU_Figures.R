@@ -123,11 +123,11 @@ fdat$lon <- round(fdat$lon, 1)
 fdat$lat <- round(fdat$lat, 1)
 fdat$lat_lon <- paste0(fdat$lat, "_", fdat$lon)
 
-fdat1 <- filter(fdat, flag %in% c("USA", "CHN", "JPN", "ESP"))
-fdat1$flag <- ifelse(fdat1$flag == "USA", "United States", fdat1$flag)
-fdat1$flag <- ifelse(fdat1$flag == "CHN", "China", fdat1$flag)
-fdat1$flag <- ifelse(fdat1$flag == "ESP", "Spain", fdat1$flag)
-fdat1$flag <- ifelse(fdat1$flag == "JPN", "Japan", fdat1$flag)
+fdat1 <- filter(fdat, flag_gfw %in% c("USA", "CHN", "JPN", "ESP"))
+fdat1$flag <- ifelse(fdat1$flag_gfw == "USA", "United States", fdat1$flag_gfw)
+fdat1$flag <- ifelse(fdat1$flag_gfw == "CHN", "China", fdat1$flag_gfw)
+fdat1$flag <- ifelse(fdat1$flag_gfw == "ESP", "Spain", fdat1$flag_gfw)
+fdat1$flag <- ifelse(fdat1$flag_gfw == "JPN", "Japan", fdat1$flag_gfw)
 
 
 

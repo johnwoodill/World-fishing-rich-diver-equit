@@ -80,38 +80,34 @@ def check_grid(lat, lon, grid_data):
 
 
 def procEffortReg(dat):
-    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'H'])
-    
-    dat = dat.assign(lat_x_lon = dat['lat'] * dat['lon'],
-                     mmsi = dat['mmsi'].fillna(0),
-                     eez = dat['eez'].fillna(0),
-                     mpa = dat['mpa'].fillna(0),
-                     rfmo = dat['rfmo'].fillna(0),
-                     fishing_hours = dat['fishing_hours'].fillna(0))
+    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'H', 'port'])
 
-    dat = dat.drop(columns='port')
+    dat = dat.assign(mmsi_count=dat['mmsi_count'].fillna(0),
+                     eez=dat['eez'].fillna(0),
+                     mpa=dat['mpa'].fillna(0),
+                     rfmo=dat['rfmo'].fillna(0),
+                     fishing_hours=dat['fishing_hours'].fillna(0))
 
     dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
     dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
     dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
-    
-    X = dat
-    
-    X = X.dropna().reset_index(drop=True)
-    
-    y = X['fishing_hours'] / X['mmsi']
+   
+    X = dat.dropna().reset_index(drop=True)
+   
+    y = X['fishing_hours'] / X['mmsi_count']
     y = y.fillna(0)
     y = np.log(1 + y)
 
-    X = X.drop(columns=['fishing_hours', 'mmsi'])
+    X = X.drop(columns=['fishing_hours', 'mmsi_count', 'rfmo'])
 
     # ### Predictors that reduce model accuracy
     # X = X[X.columns.drop(list(X.filter(regex='gear')))]
     X = X[X.columns.drop(list(X.filter(regex='present')))]
     # X = X[X.columns.drop(list(X.filter(regex='skew')))]
     # X = X[X.columns.drop(list(X.filter(regex='kurt')))]
-            
+          
     return X, y
+
 
 
 
@@ -153,84 +149,87 @@ my_lr_scheduler = callbacks.LearningRateScheduler(adapt_learning_rate)
 cv_dat = pd.read_csv('./data/full_gfw_cmip_dat_5cvgrids.csv')
 
 full_dat = pd.read_csv("data/full_gfw_cmip_dat.csv")
-# full_dat = full_dat.merge(cv_dat, on=['lat', 'lon'])
+full_dat = full_dat.merge(cv_dat, on=['lat', 'lon'])
 
 X, y = procEffortReg(full_dat)
 
 X = X.merge(cv_dat, on=['lat', 'lon'])
 
+X = X.drop(columns=['lat', 'lon'])
+
 nblocks = round(len(X[X['cv_grid'] == 0].grid.unique()) * 0.75)
 
 outdat = pd.DataFrame()
-for dropout_ in [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
-    for cv in range(0, 2000):
-        rint = random.randint(0, 1)
-        train_blocks = pd.Series(sorted(X[X['cv_grid'] == rint].grid.unique())).sample(nblocks)
-        test_blocks = pd.Series(sorted(X[X['cv_grid'] != rint].grid.unique())).sample(nblocks)
+dropout_ = 0.30
+# for dropout_ in [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
+for cv in range(0, 2000):
+    rint = random.randint(0, 1)
+    train_blocks = pd.Series(sorted(X[X['cv_grid'] == rint].grid.unique())).sample(nblocks)
+    test_blocks = pd.Series(sorted(X[X['cv_grid'] != rint].grid.unique())).sample(nblocks)
 
-        train_index = X[X['grid'].isin(train_blocks)].index
-        test_index = X[X['grid'].isin(test_blocks)].index
+    train_index = X[X['grid'].isin(train_blocks)].index
+    test_index = X[X['grid'].isin(test_blocks)].index
 
-        X_train, y_train = X[X.index.isin(train_index)].drop(columns={'grid', 'cv_grid'}), y[y.index.isin(train_index)]
-        X_test, y_test = X[X.index.isin(test_index)].drop(columns={'grid', 'cv_grid'}), y[y.index.isin(test_index)]
+    X_train, y_train = X[X.index.isin(train_index)].drop(columns={'grid', 'cv_grid'}), y[y.index.isin(train_index)]
+    X_test, y_test = X[X.index.isin(test_index)].drop(columns={'grid', 'cv_grid'}), y[y.index.isin(test_index)]
+    
+    sc_X = StandardScaler().fit(X_train)
+    X_train = sc_X.fit_transform(X_train)
+    X_test = sc_X.transform(X_test)
 
-        sc_X = StandardScaler().fit(X_train)
-        X_train = sc_X.fit_transform(X_train)
-        X_test = sc_X.transform(X_test)
+    ksmod = Sequential()
+    ksmod.add(Dropout(dropout_))
+    # ksmod.add(Dense(100, activation='relu'))
+    ksmod.add(Dense(70, activation='relu'))
+    ksmod.add(Dense(60, activation='relu'))
+    ksmod.add(Dense(30, activation='relu'))
+    ksmod.add(Dense(10, activation='relu'))
+    ksmod.add(Dense(5, activation='relu'))
+    ksmod.add(Dropout(dropout_))
+    ksmod.add(Dense(1, activation='relu'))
+    ksmod.compile(optimizer='adam', loss='mean_squared_error')
+    ksmod.fit(X_train, y_train.values, verbose=0, epochs=1000,  batch_size=128, validation_split=0.2, shuffle=True, callbacks=[es, my_lr_scheduler])
 
-        # Old way remove
-        # X_train = preprocessing.scale(X_train)
-        # X_test = preprocessing.scale(X_test)
+    ### Predict train/test set
+    y_pred_train = ksmod.predict(X_train)    
+    y_pred_test = ksmod.predict(X_test)   
+        
+    ### Get regression metrics
+    train_r2 = r2_score(y_train, y_pred_train)
+    test_r2 = r2_score(y_test, y_pred_test)
 
-        ksmod = Sequential()
-        ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
-        ksmod.add(Dense(70, activation='relu'))
-        ksmod.add(Dense(60, activation='relu'))
-        ksmod.add(Dense(30, activation='relu'))
-        ksmod.add(Dense(10, activation='relu'))
-        ksmod.add(Dense(5, activation='relu'))
-        ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
-        ksmod.add(Dense(1, activation='relu'))
-        ksmod.compile(optimizer='adam', loss='mean_squared_error')
-        ksmod.fit(X_train, y_train.values, verbose=0, epochs=1000,  batch_size=100, validation_split=0.1, shuffle=True, callbacks=[es, my_lr_scheduler])
+    train_rmse = mean_squared_error(y_train, y_pred_train)
+    test_rmse = mean_squared_error(y_test, y_pred_test)
 
-        ### Predict train/test set
-        y_pred_train = ksmod.predict(X_train)    
-        y_pred_test = ksmod.predict(X_test)   
-            
-        ### Get regression metrics
-        train_r2 = r2_score(y_train, y_pred_train)
-        test_r2 = r2_score(y_test, y_pred_test)
-
-        train_rmse = mean_squared_error(y_train, y_pred_train)
-        test_rmse = mean_squared_error(y_test, y_pred_test)
-
-        ### Bind data
-        indat = pd.DataFrame({'cv': [cv], 
-                              'dropout': dropout_,
+    ### Bind data
+    indat = pd.DataFrame({'cv': [cv], 
+                            'dropout': dropout_,
                             'r2_train': [train_r2],
                             'r2_test': [test_r2], 
                             'rmse_train': [train_rmse], 
                             'rmse_test': [test_rmse]})
-        
-        # indat.to_csv(f"tmp/nn_cv_dat/cv_{cv}.csv", index=False)
-        outdat = pd.concat([outdat, indat])
-        
-        del ksmod
-        K.clear_session()
-        gc.collect()
+    
+    # indat.to_csv(f"tmp/nn_cv_dat/cv_{cv}.csv", index=False)
+    outdat = pd.concat([outdat, indat])
+    
+    del ksmod
+    K.clear_session()
+    gc.collect()
 
-        print(f"[{cv}] => Dropout = {dropout_} -- Train R^2: {round(train_r2, 3)}  -- Test R^2: {round(test_r2, 3)} // Train RMSE: {round(train_rmse, 3)} -- Test RMSE: {round(test_rmse, 3)}")
+    print(f"[{cv}] => Dropout = {dropout_} -- Train R^2: {round(train_r2, 3)}  -- Test R^2: {round(test_r2, 3)} // Train RMSE: {round(train_rmse, 3)} -- Test RMSE: {round(test_rmse, 3)}")
 
 
 
 
 
 print('saving')
-    
-    
+
 outdat.to_csv('data/NN_EffortRegression_5D_block_cv_alldropouts_results.csv', index=False)
 
+outdat = pd.read_csv('data/NN_EffortRegression_5D_block_cv_alldropouts_results.csv')
+
+print(outdat[outdat['r2_train'] > 0].apply(lambda x: [x.mean(), x.std()]))
+    
 
 
 
