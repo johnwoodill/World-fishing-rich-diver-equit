@@ -88,7 +88,6 @@ X_scaled = scaler.transform(X)
 
 ksmod = Sequential()
 ksmod.add(Dropout(0.40, input_shape=(len(X.columns),)))
-# ksmod.add(Dense(100, activation='relu'))
 ksmod.add(Dense(70, activation='relu'))
 ksmod.add(Dense(60, activation='relu'))
 ksmod.add(Dense(30, activation='relu'))
