@@ -98,6 +98,7 @@ len(dat)
 len(dat.drop_duplicates(['date', 'lat_lon']))
 
 print("Calculating Total Fishing Effort")
+
 # Total Fishing Effort
 feffort_dat = dat.groupby(['year', 'lat_lon']).agg(
     {'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum',
@@ -114,6 +115,7 @@ feffort_dat.to_csv('data/total_fishing_effort.csv', index=False)
 len(feffort_dat)
 
 print("Calculating Total Fishing Effort by nation")
+
 # Total Fishing Effort by nation
 feffort_nat_dat = dat.groupby(['year', 'lat_lon', 'flag_gfw']).agg(
     {'lat': 'mean', 'lon': 'mean', 'fishing_hours': 'sum'}).reset_index()
@@ -124,6 +126,7 @@ feffort_nat_dat = feffort_nat_dat.groupby(['lat_lon', 'flag_gfw']).agg(
 feffort_nat_dat.to_csv('data/total_fishing_effort_nation.csv', index=False)
 
 print("Calculating Total Fishing Effort by Geartype")
+
 # Total Fishing Effort by geartype
 feffort_gear_nat_dat = dat.groupby(
     ['year', 'lat_lon', 'vessel_class_gfw']).agg(
@@ -136,6 +139,7 @@ feffort_gear_nat_dat = feffort_gear_nat_dat.groupby(
 feffort_gear_nat_dat.to_csv('data/total_fishing_effort_gear.csv', index=False)
 
 print("Calculating Species Richness")
+
 # Species Richness
 richness_dat = dat.groupby(['lat_lon']).agg(
     {'lat': 'mean', 'lon': 'mean', 'flag_gfw': 'nunique'}).reset_index()
@@ -143,6 +147,7 @@ richness_dat = richness_dat.rename(columns={'flag_gfw': 'richness'})
 richness_dat.to_csv('data/total_species_richness.csv', index=False)
 
 print("Calculating Shannon Diversity Index")
+
 # Shannon Diversity Index
 sdiv_dat = dat.groupby(['lat_lon', 'flag_gfw']).agg(
     {'lat': 'mean', 'lon': 'mean', 'year': 'count'}).reset_index()

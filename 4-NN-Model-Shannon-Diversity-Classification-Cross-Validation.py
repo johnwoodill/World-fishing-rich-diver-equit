@@ -83,21 +83,16 @@ def check_grid(lat, lon, grid_data):
 
 
 def procShannon(dat):
-    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'mmsi_count'])
+    dat = dat.drop(columns=['richness', 'lat_lon', 'E', 'mmsi_count', 'port'])
     
-    dat = dat.assign(lat_x_lon = dat['lat'] * dat['lon'],
-                     H = dat['H'].fillna(0),
+    dat = dat.assign(H = dat['H'].fillna(0),
                      fishing_hours = dat['fishing_hours'].fillna(0))
-
-    dat = dat.drop(columns='port')
 
     dat['eez'] = np.where(dat['eez'] == 0, 0, 1)
     dat['mpa'] = np.where(dat['mpa'] == 0, 0, 1)
     dat['rfmo'] = np.where(dat['rfmo'] == 0, 0, 1)
     
-    X = dat
-    
-    X = X.dropna().reset_index(drop=True)
+    X = dat.dropna().reset_index(drop=True)
     
     X1 = X[X['H'] == 0]
     X2 = X[X['H'] > 0]
@@ -191,84 +186,88 @@ X, y = procShannon(full_dat)
 
 X = X.merge(cv_dat, on=['lat', 'lon'])
 
+X = X.drop(columns=['lat', 'lon'])
+
 nblocks = round(len(X[X['cv_grid'] == 0].grid.unique()) * 0.75)
 
 outdat = pd.DataFrame()
-for dropout_ in [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
-    for cv in range(0, 2000):
-        rint = random.randint(0, 1)
-        train_blocks = pd.Series(sorted(X[X['cv_grid'] == rint].grid.unique())).sample(nblocks)
-        test_blocks = pd.Series(sorted(X[X['cv_grid'] != rint].grid.unique())).sample(nblocks)
+dropout_ = 0
+# for dropout_ in [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
+for cv in range(0, 2000):
+    rint = random.randint(0, 1)
+    train_blocks = pd.Series(sorted(X[X['cv_grid'] == rint].grid.unique())).sample(nblocks)
+    test_blocks = pd.Series(sorted(X[X['cv_grid'] != rint].grid.unique())).sample(nblocks)
 
-        train_index = X[X['grid'].isin(train_blocks)].index
-        test_index = X[X['grid'].isin(test_blocks)].index
+    train_index = X[X['grid'].isin(train_blocks)].index
+    test_index = X[X['grid'].isin(test_blocks)].index
 
-        X_train, y_train = X[X.index.isin(train_index)].drop(columns={'grid', 'cv_grid'}), y[y.index.isin(train_index)]
-        X_test, y_test = X[X.index.isin(test_index)].drop(columns={'grid', 'cv_grid'}), y[y.index.isin(test_index)]
+    X_train, y_train = X[X.index.isin(train_index)].drop(columns={'grid', 'cv_grid'}), y[y.index.isin(train_index)]
+    X_test, y_test = X[X.index.isin(test_index)].drop(columns={'grid', 'cv_grid'}), y[y.index.isin(test_index)]
 
-        sc_X = StandardScaler().fit(X_train)
-        X_train = sc_X.fit_transform(X_train)
-        X_test = sc_X.transform(X_test)
+    sc_X = StandardScaler().fit(X_train)
+    X_train = sc_X.fit_transform(X_train)
+    X_test = sc_X.transform(X_test)
 
-        # Old way remove
-        # X_train = preprocessing.scale(X_train)
-        # X_test = preprocessing.scale(X_test)
+    # Old way remove
+    # X_train = preprocessing.scale(X_train)
+    # X_test = preprocessing.scale(X_test)
 
-        # encode class values as integers
-        encoder = LabelEncoder()
-        encoder.fit(y_train)
-        encoded_Y = encoder.transform(y_train)
-        dummy_y = np_utils.to_categorical(encoded_Y)
+    # encode class values as integers
+    encoder = LabelEncoder()
+    encoder.fit(y_train)
+    encoded_Y = encoder.transform(y_train)
+    dummy_y = np_utils.to_categorical(encoded_Y)
 
-        ksmod = Sequential()
-        # ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
-        ksmod.add(Dense(70, activation='relu'))
-        ksmod.add(Dense(60, activation='relu'))
-        ksmod.add(Dense(30, activation='relu'))
-        ksmod.add(Dense(10, activation='relu'))
-        # ksmod.add(Dense(5, activation='relu'))
-        # ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
-        ksmod.add(Dense(4, activation='sigmoid'))
-        ksmod.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-        ksmod.fit(X_train, dummy_y, verbose=0, epochs=1000,  batch_size=128, validation_split=0.2, shuffle=True, callbacks=[es, my_lr_scheduler])
+    ksmod = Sequential()
+    # ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
+    ksmod.add(Dense(70, activation='relu'))
+    ksmod.add(Dense(60, activation='relu'))
+    ksmod.add(Dense(50, activation='relu'))
+    ksmod.add(Dense(30, activation='relu'))
+    ksmod.add(Dense(15, activation='relu'))
+    ksmod.add(Dense(10, activation='relu'))
+    # ksmod.add(Dropout(dropout_, input_shape=(len(X.columns) - 2,)))
+    ksmod.add(Dense(4, activation='sigmoid'))
+    ksmod.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    ksmod.fit(X_train, dummy_y, verbose=0, epochs=1000,  batch_size=128, validation_split=0.2, shuffle=True, callbacks=[es, my_lr_scheduler])
 
-        ### Predict train/test set
-        y_pred_train = ksmod.predict(X_train)    
-        y_pred_test = ksmod.predict(X_test)   
-            
-        y_pred_train = [np.argmax(x) for x in y_pred_train]
-        y_pred_test = [np.argmax(x) for x in y_pred_test]
+    ### Predict train/test set
+    y_pred_train = ksmod.predict(X_train)    
+    y_pred_test = ksmod.predict(X_test)   
         
-        ### Get regression metrics
-        roc_ = roc_auc_score_multiclass(y_test, y_pred_test, average='macro')
-        roc_0 = roc_[0]
-        roc_1 = roc_[1]
-        roc_2 = roc_[2]
-        roc_3 = roc_[3]
-        test_roc_mean = np.mean([roc_0, roc_1, roc_2, roc_3])
-        
-        roc_ = roc_auc_score_multiclass(y_train, y_pred_train)
-        roc_0 = roc_[0]
-        roc_1 = roc_[1]
-        roc_2 = roc_[2]
-        roc_3 = roc_[3]
-        train_roc_mean = np.mean([roc_0, roc_1, roc_2, roc_3])
-        
-        ### Get accuracy score
-        acc_test_score = accuracy_score(y_test, y_pred_test)
-        acc_train_score = accuracy_score(y_train, y_pred_train)
+    y_pred_train = [np.argmax(x) for x in y_pred_train]
+    y_pred_test = [np.argmax(x) for x in y_pred_test]
+    
+    ### Get regression metrics
+    roc_ = roc_auc_score_multiclass(y_test, y_pred_test, average='macro')
+    roc_0 = roc_[0]
+    roc_1 = roc_[1]
+    roc_2 = roc_[2]
+    roc_3 = roc_[3]
+    test_roc_mean = np.mean([roc_0, roc_1, roc_2, roc_3])
+    
+    roc_ = roc_auc_score_multiclass(y_train, y_pred_train)
+    roc_0 = roc_[0]
+    roc_1 = roc_[1]
+    roc_2 = roc_[2]
+    roc_3 = roc_[3]
+    train_roc_mean = np.mean([roc_0, roc_1, roc_2, roc_3])
+    
+    ### Get accuracy score
+    acc_test_score = accuracy_score(y_test, y_pred_test)
+    acc_train_score = accuracy_score(y_train, y_pred_train)
 
-        del ksmod
-        K.clear_session()
-        gc.collect()
+    del ksmod
+    K.clear_session()
+    gc.collect()
 
-        ### Bind data
-        indat = pd.DataFrame({'cv': [cv], 'dropout': [dropout_], 'test_score': [acc_test_score], 'train_score': [acc_train_score], 
-                            'roc_0': [roc_0], 'roc_1': [roc_1], 'roc_2': [roc_2], 'roc_3': [roc_3], 'test_roc_avg': [test_roc_mean],
-                            'train_roc_avg': train_roc_mean})
-        outdat = pd.concat([outdat, indat])
-        print(f"[{cv}] => Dropout = {dropout_} -- Train Acc. Score: {round(acc_train_score*100, 3)}%  -- Test Acc. Score: {round(acc_test_score*100, 3)}% // Train Macro Mean: {round(train_roc_mean*100, 3)}% -- Test Macro Mean: {round(test_roc_mean*100, 3)}%")
-        
+    ### Bind data
+    indat = pd.DataFrame({'cv': [cv], 'dropout': [dropout_], 'test_score': [acc_test_score], 'train_score': [acc_train_score], 
+                        'roc_0': [roc_0], 'roc_1': [roc_1], 'roc_2': [roc_2], 'roc_3': [roc_3], 'test_roc_avg': [test_roc_mean],
+                        'train_roc_avg': train_roc_mean})
+    outdat = pd.concat([outdat, indat])
+    print(f"[{cv}] => Dropout = {dropout_} -- Train Acc. Score: {round(acc_train_score*100, 3)}%  -- Test Acc. Score: {round(acc_test_score*100, 3)}% // Train Macro Mean: {round(train_roc_mean*100, 3)}% -- Test Macro Mean: {round(test_roc_mean*100, 3)}%")
+    
 
 
 

@@ -135,17 +135,24 @@ full_dat_ssp126_2015_2030_dat = pd.read_csv("data/full_dat_ssp126_2015_2030_dat.
 full_dat_ssp126_2015_2030_dat.columns = full_dat_ssp126_2015_2030_dat.columns.str.replace("_2015-2030", "")
 X_ssp126_2015, y_ssp126_2015 = procEffortReg(full_dat_ssp126_2015_2030_dat)
 
+full_dat_ssp370_2015_2030_dat = pd.read_csv("data/full_dat_ssp370_2015_2030_dat.csv")
+full_dat_ssp370_2015_2030_dat.columns = full_dat_ssp370_2015_2030_dat.columns.str.replace("_2015-2030", "")
+X_ssp370_2015, y_ssp370_2015 = procEffortReg(full_dat_ssp370_2015_2030_dat)
+
 full_dat_ssp585_2015_2030_dat = pd.read_csv("data/full_dat_ssp585_2015_2030_dat.csv")
 full_dat_ssp585_2015_2030_dat.columns = full_dat_ssp585_2015_2030_dat.columns.str.replace("_2015-2030", "")
 X_ssp585_2015, y_ssp585_2015 = procEffortReg(full_dat_ssp585_2015_2030_dat)
 
 X_ssp126_2015_scaled = scaler.transform(X_ssp126_2015.drop(columns=['lat', 'lon']))
+X_ssp370_2015_scaled = scaler.transform(X_ssp370_2015.drop(columns=['lat', 'lon']))
 X_ssp585_2015_scaled = scaler.transform(X_ssp585_2015.drop(columns=['lat', 'lon']))
 
 y_ssp126_pred_2015 = ksmod.predict(X_ssp126_2015_scaled)
+y_ssp370_pred_2015 = ksmod.predict(X_ssp370_2015_scaled)
 y_ssp585_pred_2015 = ksmod.predict(X_ssp585_2015_scaled)
 
 ssp126_pred_2015 = pd.DataFrame({'lat': X_ssp126_2015['lat'], 'lon': X_ssp126_2015['lon'], 'y_ssp126_pred_2015': y_ssp126_pred_2015.ravel()})
+ssp370_pred_2015 = pd.DataFrame({'lat': X_ssp370_2015['lat'], 'lon': X_ssp370_2015['lon'], 'y_ssp370_pred_2015': y_ssp370_pred_2015.ravel()})
 ssp585_pred_2015 = pd.DataFrame({'lat': X_ssp585_2015['lat'], 'lon': X_ssp585_2015['lon'], 'y_ssp585_pred_2015': y_ssp585_pred_2015.ravel()})
                                  
                                  
@@ -159,17 +166,24 @@ full_dat_ssp126_2030_2045_dat = pd.read_csv("data/full_dat_ssp126_2030_2045_dat.
 full_dat_ssp126_2030_2045_dat.columns = full_dat_ssp126_2030_2045_dat.columns.str.replace("_2030-2045", "")
 X_ssp126_2030, y_ssp126_2030 = procEffortReg(full_dat_ssp126_2030_2045_dat)
 
+full_dat_ssp370_2030_2045_dat = pd.read_csv("data/full_dat_ssp370_2030_2045_dat.csv")
+full_dat_ssp370_2030_2045_dat.columns = full_dat_ssp370_2030_2045_dat.columns.str.replace("_2030-2045", "")
+X_ssp370_2030, y_ssp370_2030 = procEffortReg(full_dat_ssp370_2030_2045_dat)
+
 full_dat_ssp585_2030_2045_dat = pd.read_csv("data/full_dat_ssp585_2030_2045_dat.csv")
 full_dat_ssp585_2030_2045_dat.columns = full_dat_ssp585_2030_2045_dat.columns.str.replace("_2030-2045", "")
 X_ssp585_2030, y_ssp585_2030 = procEffortReg(full_dat_ssp585_2030_2045_dat)
 
 X_ssp126_2030_scaled = scaler.transform(X_ssp126_2030.drop(columns=['lat', 'lon']))
+X_ssp370_2030_scaled = scaler.transform(X_ssp370_2030.drop(columns=['lat', 'lon']))
 X_ssp585_2030_scaled = scaler.transform(X_ssp585_2030.drop(columns=['lat', 'lon']))
 
 y_ssp126_pred_2030 = ksmod.predict(X_ssp126_2030_scaled)
+y_ssp370_pred_2030 = ksmod.predict(X_ssp370_2030_scaled)
 y_ssp585_pred_2030 = ksmod.predict(X_ssp585_2030_scaled)
 
 ssp126_pred_2030 = pd.DataFrame({'lat': X_ssp126_2030['lat'], 'lon': X_ssp126_2030['lon'], 'y_ssp126_pred_2030': y_ssp126_pred_2030.ravel()})
+ssp370_pred_2030 = pd.DataFrame({'lat': X_ssp370_2030['lat'], 'lon': X_ssp370_2030['lon'], 'y_ssp370_pred_2030': y_ssp370_pred_2030.ravel()})
 ssp585_pred_2030 = pd.DataFrame({'lat': X_ssp585_2030['lat'], 'lon': X_ssp585_2030['lon'], 'y_ssp585_pred_2030': y_ssp585_pred_2030.ravel()})
 
 
@@ -183,17 +197,24 @@ full_dat_ssp126_2045_2060_dat = pd.read_csv("data/full_dat_ssp126_2045_2060_dat.
 full_dat_ssp126_2045_2060_dat.columns = full_dat_ssp126_2045_2060_dat.columns.str.replace("_2045-2060", "")
 X_ssp126_2045, y_ssp126_2045 = procEffortReg(full_dat_ssp126_2045_2060_dat)
 
+full_dat_ssp370_2045_2060_dat = pd.read_csv("data/full_dat_ssp370_2045_2060_dat.csv")
+full_dat_ssp370_2045_2060_dat.columns = full_dat_ssp370_2045_2060_dat.columns.str.replace("_2045-2060", "")
+X_ssp370_2045, y_ssp370_2045 = procEffortReg(full_dat_ssp370_2045_2060_dat)
+
 full_dat_ssp585_2045_2060_dat = pd.read_csv("data/full_dat_ssp585_2045_2060_dat.csv")
 full_dat_ssp585_2045_2060_dat.columns = full_dat_ssp585_2045_2060_dat.columns.str.replace("_2045-2060", "")
 X_ssp585_2045, y_ssp585_2045 = procEffortReg(full_dat_ssp585_2045_2060_dat)
 
 X_ssp126_2045_scaled = scaler.transform(X_ssp126_2045.drop(columns=['lat', 'lon']))
+X_ssp370_2045_scaled = scaler.transform(X_ssp370_2045.drop(columns=['lat', 'lon']))
 X_ssp585_2045_scaled = scaler.transform(X_ssp585_2045.drop(columns=['lat', 'lon']))
 
 y_ssp126_pred_2045 = ksmod.predict(X_ssp126_2045_scaled)
+y_ssp370_pred_2045 = ksmod.predict(X_ssp370_2045_scaled)
 y_ssp585_pred_2045 = ksmod.predict(X_ssp585_2045_scaled)
 
 ssp126_pred_2045 = pd.DataFrame({'lat': X_ssp126_2045['lat'], 'lon': X_ssp126_2045['lon'], 'y_ssp126_pred_2045': y_ssp126_pred_2045.ravel()})
+ssp370_pred_2045 = pd.DataFrame({'lat': X_ssp370_2045['lat'], 'lon': X_ssp370_2045['lon'], 'y_ssp370_pred_2045': y_ssp370_pred_2045.ravel()})
 ssp585_pred_2045 = pd.DataFrame({'lat': X_ssp585_2045['lat'], 'lon': X_ssp585_2045['lon'], 'y_ssp585_pred_2045': y_ssp585_pred_2045.ravel()})
 
 
@@ -206,17 +227,24 @@ full_dat_ssp126_2060_2075_dat = pd.read_csv("data/full_dat_ssp126_2060_2075_dat.
 full_dat_ssp126_2060_2075_dat.columns = full_dat_ssp126_2060_2075_dat.columns.str.replace("_2060-2075", "")
 X_ssp126_2060, y_ssp126_2060 = procEffortReg(full_dat_ssp126_2060_2075_dat)
 
+full_dat_ssp370_2060_2075_dat = pd.read_csv("data/full_dat_ssp370_2060_2075_dat.csv")
+full_dat_ssp370_2060_2075_dat.columns = full_dat_ssp370_2060_2075_dat.columns.str.replace("_2060-2075", "")
+X_ssp370_2060, y_ssp370_2060 = procEffortReg(full_dat_ssp370_2060_2075_dat)
+
 full_dat_ssp585_2060_2075_dat = pd.read_csv("data/full_dat_ssp585_2060_2075_dat.csv")
 full_dat_ssp585_2060_2075_dat.columns = full_dat_ssp585_2060_2075_dat.columns.str.replace("_2060-2075", "")
 X_ssp585_2060, y_ssp585_2060 = procEffortReg(full_dat_ssp585_2060_2075_dat)
 
 X_ssp126_2060_scaled = scaler.transform(X_ssp126_2060.drop(columns=['lat', 'lon']))
+X_ssp370_2060_scaled = scaler.transform(X_ssp370_2060.drop(columns=['lat', 'lon']))
 X_ssp585_2060_scaled = scaler.transform(X_ssp585_2060.drop(columns=['lat', 'lon']))
 
 y_ssp126_pred_2060 = ksmod.predict(X_ssp126_2060_scaled)
+y_ssp370_pred_2060 = ksmod.predict(X_ssp370_2060_scaled)
 y_ssp585_pred_2060 = ksmod.predict(X_ssp585_2060_scaled)
 
 ssp126_pred_2060 = pd.DataFrame({'lat': X_ssp126_2060['lat'], 'lon': X_ssp126_2060['lon'], 'y_ssp126_pred_2060': y_ssp126_pred_2060.ravel()})
+ssp370_pred_2060 = pd.DataFrame({'lat': X_ssp370_2060['lat'], 'lon': X_ssp370_2060['lon'], 'y_ssp370_pred_2060': y_ssp370_pred_2060.ravel()})
 ssp585_pred_2060 = pd.DataFrame({'lat': X_ssp585_2060['lat'], 'lon': X_ssp585_2060['lon'], 'y_ssp585_pred_2060': y_ssp585_pred_2060.ravel()})
 
 
@@ -229,17 +257,24 @@ full_dat_ssp126_2075_2090_dat = pd.read_csv("data/full_dat_ssp126_2075_2090_dat.
 full_dat_ssp126_2075_2090_dat.columns = full_dat_ssp126_2075_2090_dat.columns.str.replace("_2075-2090", "")
 X_ssp126_2075, y_ssp126_2075 = procEffortReg(full_dat_ssp126_2075_2090_dat)
 
+full_dat_ssp370_2075_2090_dat = pd.read_csv("data/full_dat_ssp370_2075_2090_dat.csv")
+full_dat_ssp370_2075_2090_dat.columns = full_dat_ssp370_2075_2090_dat.columns.str.replace("_2075-2090", "")
+X_ssp370_2075, y_ssp370_2075 = procEffortReg(full_dat_ssp370_2075_2090_dat)
+
 full_dat_ssp585_2075_2090_dat = pd.read_csv("data/full_dat_ssp585_2075_2090_dat.csv")
 full_dat_ssp585_2075_2090_dat.columns = full_dat_ssp585_2075_2090_dat.columns.str.replace("_2075-2090", "")
 X_ssp585_2075, y_ssp585_2075 = procEffortReg(full_dat_ssp585_2075_2090_dat)
 
 X_ssp126_2075_scaled = scaler.transform(X_ssp126_2075.drop(columns=['lat', 'lon']))
+X_ssp370_2075_scaled = scaler.transform(X_ssp370_2075.drop(columns=['lat', 'lon']))
 X_ssp585_2075_scaled = scaler.transform(X_ssp585_2075.drop(columns=['lat', 'lon']))
 
 y_ssp126_pred_2075 = ksmod.predict(X_ssp126_2075_scaled)
+y_ssp370_pred_2075 = ksmod.predict(X_ssp370_2075_scaled)
 y_ssp585_pred_2075 = ksmod.predict(X_ssp585_2075_scaled)
 
 ssp126_pred_2075 = pd.DataFrame({'lat': X_ssp126_2075['lat'], 'lon': X_ssp126_2075['lon'], 'y_ssp126_pred_2075': y_ssp126_pred_2075.ravel()})
+ssp370_pred_2075 = pd.DataFrame({'lat': X_ssp370_2075['lat'], 'lon': X_ssp370_2075['lon'], 'y_ssp370_pred_2075': y_ssp370_pred_2075.ravel()})
 ssp585_pred_2075 = pd.DataFrame({'lat': X_ssp585_2075['lat'], 'lon': X_ssp585_2075['lon'], 'y_ssp585_pred_2075': y_ssp585_pred_2075.ravel()})
 
 
@@ -250,18 +285,23 @@ savedat = pd.DataFrame({'lat': X_lat,
                         'y_pred_historical': y_hist_pred_2015.ravel()})
 
 savedat = savedat.merge(ssp126_pred_2015, on=['lat', 'lon'])
+savedat = savedat.merge(ssp370_pred_2015, on=['lat', 'lon'])
 savedat = savedat.merge(ssp585_pred_2015, on=['lat', 'lon'])
 
 savedat = savedat.merge(ssp126_pred_2030, on=['lat', 'lon'])
+savedat = savedat.merge(ssp370_pred_2030, on=['lat', 'lon'])
 savedat = savedat.merge(ssp585_pred_2030, on=['lat', 'lon'])
 
 savedat = savedat.merge(ssp126_pred_2045, on=['lat', 'lon'])
+savedat = savedat.merge(ssp370_pred_2045, on=['lat', 'lon'])
 savedat = savedat.merge(ssp585_pred_2045, on=['lat', 'lon'])
 
 savedat = savedat.merge(ssp126_pred_2060, on=['lat', 'lon'])
+savedat = savedat.merge(ssp370_pred_2060, on=['lat', 'lon'])
 savedat = savedat.merge(ssp585_pred_2060, on=['lat', 'lon'])
 
 savedat = savedat.merge(ssp126_pred_2075, on=['lat', 'lon'])
+savedat = savedat.merge(ssp370_pred_2075, on=['lat', 'lon'])
 savedat = savedat.merge(ssp585_pred_2075, on=['lat', 'lon'])
 
 
@@ -269,6 +309,7 @@ savedat = savedat.merge(ssp585_pred_2075, on=['lat', 'lon'])
 
 print(np.sum(savedat['y_pred_historical']))
 print(np.sum(savedat['y_ssp126_pred_2075']))
+print(np.sum(savedat['y_ssp370_pred_2075']))
 print(np.sum(savedat['y_ssp585_pred_2075']))
 
 # Pandas dataframe
